@@ -1,0 +1,189 @@
+diff --git a/components/android_autofill/browser/form_data_android.cc b/components/android_autofill/browser/form_data_android.cc
+--- a/components/android_autofill/browser/form_data_android.cc
++++ b/components/android_autofill/browser/form_data_android.cc
+@@ -5,6 +5,7 @@
+ #include "components/android_autofill/browser/form_data_android.h"
+ 
+ #include <memory>
++#include <optional>
+ #include <string_view>
+ #include <tuple>
+ 
+@@ -22,6 +23,84 @@
+ #include "components/autofill/core/common/unique_ids.h"
+ 
+ namespace autofill {
++namespace {
++
++struct LoginFieldFallbacks {
++  std::optional<FieldGlobalId> username;
++  std::optional<FieldGlobalId> password;
++};
++
++bool IsVisibleAutocompletableField(const FormFieldData& field) {
++  return field.is_focusable() && field.is_visible() &&
++         field.should_autocomplete();
++}
++
++LoginFieldFallbacks FindLoginFieldFallbacks(const FormData& form) {
++  std::optional<size_t> password_index;
++  for (size_t i = 0; i < form.fields().size(); ++i) {
++    const FormFieldData& field = form.fields()[i];
++    if (field.form_control_type() != FormControlType::kInputPassword ||
++        !IsVisibleAutocompletableField(field)) {
++      continue;
++    }
++    // Multiple password inputs usually indicate account creation or password
++    // change. Leave those forms to explicit attributes and normal predictions.
++    if (password_index) {
++      return {};
++    }
++    password_index = i;
++  }
++  if (!password_index) {
++    return {};
++  }
++
++  LoginFieldFallbacks fallbacks;
++  fallbacks.password = form.fields()[*password_index].global_id();
++
++  std::optional<FieldGlobalId> username_candidate;
++  bool multiple_username_candidates = false;
++  for (size_t i = 0; i < *password_index; ++i) {
++    const FormFieldData& field = form.fields()[i];
++    if (!IsVisibleAutocompletableField(field)) {
++      continue;
++    }
++    if (field.form_control_type() == FormControlType::kInputEmail ||
++        field.form_control_type() == FormControlType::kInputText) {
++      multiple_username_candidates |= username_candidate.has_value();
++      username_candidate = field.global_id();
++    }
++  }
++
++  // Only relabel an unambiguous account identifier. This avoids treating
++  // profile or account-creation fields as login usernames.
++  if (username_candidate && !multiple_username_candidates) {
++    fallbacks.username = username_candidate;
++  }
++  return fallbacks;
++}
++
++FieldType GetLoginFieldFallback(const AutofillField& field,
++                                const LoginFieldFallbacks& fallbacks) {
++  const HtmlFieldType html_type = field.html_type();
++  if ((html_type != HtmlFieldType::kUnspecified &&
++       html_type != HtmlFieldType::kUnrecognized) ||
++      (field.server_type() != NO_SERVER_DATA &&
++       field.server_type() != UNKNOWN_TYPE)) {
++    return UNKNOWN_TYPE;
++  }
++
++  const FieldType current_type = GetMostRelevantFieldType(field.Type());
++  if (fallbacks.username == field.global_id() &&
++      (current_type == UNKNOWN_TYPE || current_type == EMAIL_ADDRESS)) {
++    return USERNAME;
++  }
++  if (fallbacks.password == field.global_id() && current_type == UNKNOWN_TYPE) {
++    return PASSWORD;
++  }
++  return UNKNOWN_TYPE;
++}
++
++}  // namespace
+ 
+ FormDataAndroid::FormDataAndroid(const FormData& form, SessionId session_id)
+     : session_id_(session_id),
+@@ -97,6 +176,8 @@ bool FormDataAndroid::SimilarFormAs(const FormData& form) const {
+ }
+ 
+ void FormDataAndroid::UpdateFieldTypes(const FormStructure& form_structure) {
++  const LoginFieldFallbacks login_fallbacks = FindLoginFieldFallbacks(form_);
++
+   // Map FieldGlobalId's to their respective AutofillField, this way we can
+   // quickly ignore below FormFieldDataAndroid's with no matching AutofillField.
+   auto autofill_fields = base::MakeFlatMap<FieldGlobalId, const AutofillField*>(
+@@ -112,19 +193,26 @@ void FormDataAndroid::UpdateFieldTypes(const FormStructure& form_structure) {
+         server_predictions.emplace_back(
+             ToSafeFieldType(prediction.type()).value_or(NO_SERVER_DATA));
+       }
++      const FieldType login_fallback =
++          GetLoginFieldFallback(*autofill_field, login_fallbacks);
+       std::string_view overall_type = [&] {
+         if (HtmlFieldType html_field_type = autofill_field->html_type();
+             html_field_type != HtmlFieldType::kUnspecified &&
+             html_field_type != HtmlFieldType::kUnrecognized) {
+           return FieldTypeToStringView(html_field_type);
+         }
++        if (login_fallback != UNKNOWN_TYPE) {
++          return FieldTypeToStringView(login_fallback);
++        }
+         return FieldTypeToStringView(
+             GetMostRelevantFieldType(autofill_field->Type()));
+       }();
+       form_field_data_android->UpdateFieldTypes(
+           FormFieldDataAndroid::FieldTypes(
+-              autofill_field->heuristic_type(), autofill_field->server_type(),
+-              overall_type, std::move(server_predictions)));
++              login_fallback != UNKNOWN_TYPE ? login_fallback
++                                             : autofill_field->heuristic_type(),
++              autofill_field->server_type(), overall_type,
++              std::move(server_predictions)));
+     }
+   }
+ }
+diff --git a/components/android_autofill/browser/form_data_android_unittest.cc b/components/android_autofill/browser/form_data_android_unittest.cc
+--- a/components/android_autofill/browser/form_data_android_unittest.cc
++++ b/components/android_autofill/browser/form_data_android_unittest.cc
+@@ -17,7 +17,9 @@
+ #include "components/android_autofill/browser/mock_form_field_data_android_bridge.h"
+ #include "components/autofill/core/browser/autofill_type.h"
+ #include "components/autofill/core/browser/form_structure.h"
++#include "components/autofill/core/browser/form_structure_test_api.h"
+ #include "components/autofill/core/common/autofill_test_utils.h"
++#include "components/autofill/core/common/autofill_util.h"
+ #include "components/autofill/core/common/form_data.h"
+ #include "components/autofill/core/common/form_data_test_api.h"
+ #include "components/autofill/core/common/form_field_data.h"
+@@ -45,6 +47,11 @@ MATCHER(SimilarFieldAs, "") {
+   return std::get<0>(arg) && std::get<0>(arg)->SimilarFieldAs(std::get<1>(arg));
+ }
+ 
++MATCHER_P(LocalFieldTypeIs, type, "") {
++  return arg.heuristic_type == type && arg.server_type == NO_SERVER_DATA &&
++         arg.overall_type == FieldTypeToStringView(type);
++}
++
+ FormFieldData CreateTestField(std::u16string name = u"SomeName") {
+   static uint64_t renderer_id = 1;
+   FormFieldData f;
+@@ -250,6 +257,29 @@ TEST_F(FormDataAndroidTest, UpdateFieldTypes) {
+   form_android.UpdateFieldTypes(FormStructure(form));
+ }
+ 
++TEST_F(FormDataAndroidTest, UpdateFieldTypes_FallsBackForSimpleLoginForm) {
++  FormFieldData username = CreateTestField(u"");
++  username.set_form_control_type(FormControlType::kInputEmail);
++  FormFieldData password = CreateTestField(u"");
++  password.set_form_control_type(FormControlType::kInputPassword);
++
++  FormData form = CreateTestForm();
++  form.set_fields({username, password});
++  FormDataAndroid form_android(form, kSampleSessionId);
++  ASSERT_THAT(field_bridges(), SizeIs(2));
++
++  FormStructure form_structure(form);
++  test_api(form_structure)
++      .SetFieldTypes({EMAIL_ADDRESS, UNKNOWN_TYPE},
++                     {NO_SERVER_DATA, NO_SERVER_DATA});
++
++  EXPECT_CALL(*field_bridges()[0],
++              UpdateFieldTypes(LocalFieldTypeIs(USERNAME)));
++  EXPECT_CALL(*field_bridges()[1],
++              UpdateFieldTypes(LocalFieldTypeIs(PASSWORD)));
++  form_android.UpdateFieldTypes(form_structure);
++}
++
+ // Tests that `UpdateFieldTypes(base::flat_map<FieldGlobalId, AutofillType))`
+ // - sets all types (heuristic, server, computed),
+ // - only calls the JNI bridge for fields whose types differ.

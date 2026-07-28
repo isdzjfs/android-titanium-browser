@@ -3,6 +3,8 @@
 chromium/
 depot_tools/
 keys/
+signing/
 
 *.aab
 *.apk
+AGENTS.md

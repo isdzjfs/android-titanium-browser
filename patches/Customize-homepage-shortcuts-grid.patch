@@ -1,0 +1,1326 @@
+diff --git a/chrome/android/chrome_java_resources.gni b/chrome/android/chrome_java_resources.gni
+index 1bb7958..98b5f7b 100644
+--- a/chrome/android/chrome_java_resources.gni
++++ b/chrome/android/chrome_java_resources.gni
+@@ -382,6 +382,14 @@ chrome_java_resources = [
+   "java/res/drawable/menu_dot.xml",
+   "java/res/drawable/new_tab_animation_rounded_rect.xml",
+   "java/res/drawable/notifications_active.xml",
++  "java/res/drawable/ntp_shortcut_github.xml",
++  "java/res/drawable/ntp_shortcut_google.xml",
++  "java/res/drawable/ntp_shortcut_icon_background.xml",
++  "java/res/drawable/ntp_shortcut_icon_highlight.xml",
++  "java/res/drawable/ntp_shortcut_qq.xml",
++  "java/res/drawable/ntp_shortcut_reddit.xml",
++  "java/res/drawable/ntp_shortcut_x.xml",
++  "java/res/drawable/ntp_shortcut_youtube.xml",
+   "java/res/drawable/permission_location_off.xml",
+   "java/res/drawable/phone_recent_tab_empty_state_illustration.xml",
+   "java/res/drawable/photo_24dp.xml",
+diff --git a/chrome/android/chrome_java_sources.gni b/chrome/android/chrome_java_sources.gni
+index 956d6bb..6f5674f 100644
+--- a/chrome/android/chrome_java_sources.gni
++++ b/chrome/android/chrome_java_sources.gni
+@@ -1139,6 +1139,7 @@ chrome_java_sources = [
+   "java/src/org/chromium/chrome/browser/suggestions/tile/MostVisitedTilesMediator.java",
+   "java/src/org/chromium/chrome/browser/suggestions/tile/MostVisitedTilesProperties.java",
+   "java/src/org/chromium/chrome/browser/suggestions/tile/MostVisitedTilesViewBinder.java",
++  "java/src/org/chromium/chrome/browser/suggestions/tile/NonScrollingHorizontalScrollView.java",
+   "java/src/org/chromium/chrome/browser/suggestions/tile/SuggestionsTileVerticalDivider.java",
+   "java/src/org/chromium/chrome/browser/suggestions/tile/SuggestionsTileView.java",
+   "java/src/org/chromium/chrome/browser/suggestions/tile/Tile.java",
+diff --git a/chrome/android/java/res/drawable/ntp_shortcut_github.xml b/chrome/android/java/res/drawable/ntp_shortcut_github.xml
+new file mode 100644
+index 0000000..081d91c
+--- /dev/null
++++ b/chrome/android/java/res/drawable/ntp_shortcut_github.xml
+@@ -0,0 +1,14 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!-- Bundled fallback used only when no favicon has been cached for a GitHub URL. -->
++<vector xmlns:android="http://schemas.android.com/apk/res/android"
++    android:width="48dp"
++    android:height="48dp"
++    android:viewportWidth="48"
++    android:viewportHeight="48">
++    <path
++        android:fillColor="#FF181717"
++        android:pathData="M12,0H36C42.6,0 48,5.4 48,12V36C48,42.6 42.6,48 36,48H12C5.4,48 0,42.6 0,36V12C0,5.4 5.4,0 12,0Z" />
++    <path
++        android:fillColor="#FFFFFFFF"
++        android:pathData="M24,8c-8.8,0 -16,7.2 -16,16c0,7.1 4.6,13.1 10.9,15.2c0.8,0.1 1.1,-0.3 1.1,-0.8v-3.1c-4.4,1 -5.4,-1.9 -5.4,-1.9c-0.7,-1.8 -1.8,-2.3 -1.8,-2.3c-1.5,-1 0.1,-1 0.1,-1c1.6,0.1 2.5,1.7 2.5,1.7c1.4,2.5 3.8,1.8 4.7,1.3c0.1,-1 0.6,-1.8 1,-2.2c-3.5,-0.4 -7.3,-1.8 -7.3,-7.9c0,-1.8 0.6,-3.2 1.7,-4.3c-0.2,-0.4 -0.7,-2 0.2,-4.2c0,0 1.4,-0.4 4.4,1.6c1.3,-0.4 2.6,-0.5 4,-0.5s2.7,0.2 4,0.5c3.1,-2.1 4.4,-1.6 4.4,-1.6c0.9,2.2 0.3,3.8 0.2,4.2c1.1,1.1 1.7,2.5 1.7,4.3c0,6.1 -3.7,7.5 -7.3,7.9c0.6,0.5 1.1,1.5 1.1,3v4.5c0,0.5 0.3,0.9 1.1,0.8C35.4,37.1 40,31.1 40,24c0,-8.8 -7.2,-16 -16,-16z" />
++</vector>
+diff --git a/chrome/android/java/res/drawable/ntp_shortcut_google.xml b/chrome/android/java/res/drawable/ntp_shortcut_google.xml
+new file mode 100644
+index 0000000..2911d5e
+--- /dev/null
++++ b/chrome/android/java/res/drawable/ntp_shortcut_google.xml
+@@ -0,0 +1,23 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!-- Bundled fallback used only when no favicon has been cached for a Google URL. -->
++<vector xmlns:android="http://schemas.android.com/apk/res/android"
++    android:width="48dp"
++    android:height="48dp"
++    android:viewportWidth="48"
++    android:viewportHeight="48">
++    <path
++        android:fillColor="#FFFFFFFF"
++        android:pathData="M12,0H36C42.6,0 48,5.4 48,12V36C48,42.6 42.6,48 36,48H12C5.4,48 0,42.6 0,36V12C0,5.4 5.4,0 12,0Z" />
++    <path
++        android:fillColor="#FF4285F4"
++        android:pathData="M43.4,24.5c0,-1.4 -0.1,-2.8 -0.4,-4H24v7.7h10.9c-0.5,2.5 -1.9,4.7 -4,6.1v5h6.5c3.8,-3.5 6,-8.7 6,-14.8z" />
++    <path
++        android:fillColor="#FF34A853"
++        android:pathData="M24,44c5.4,0 10,-1.8 13.4,-4.8l-6.5,-5c-1.8,1.2 -4.1,1.9 -6.9,1.9c-5.2,0 -9.6,-3.5 -11.2,-8.3H6.1v5.2C9.5,39.5 16.2,44 24,44z" />
++    <path
++        android:fillColor="#FFFBBC05"
++        android:pathData="M12.8,27.8c-0.4,-1.2 -0.6,-2.5 -0.6,-3.8s0.2,-2.6 0.6,-3.8V15H6.1C4.7,17.7 4,20.8 4,24s0.7,6.3 2.1,9l6.7,-5.2z" />
++    <path
++        android:fillColor="#FFEA4335"
++        android:pathData="M24,11.9c3,0 5.7,1 7.8,3.1l5.8,-5.8C34,5.8 29.4,4 24,4C16.2,4 9.5,8.5 6.1,15l6.7,5.2c1.6,-4.8 6,-8.3 11.2,-8.3z" />
++</vector>
+diff --git a/chrome/android/java/res/drawable/ntp_shortcut_icon_background.xml b/chrome/android/java/res/drawable/ntp_shortcut_icon_background.xml
+new file mode 100644
+index 0000000..cf4716a
+--- /dev/null
++++ b/chrome/android/java/res/drawable/ntp_shortcut_icon_background.xml
+@@ -0,0 +1,7 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!-- Background for the NTP's full-size rounded-square shortcut icons. -->
++<shape xmlns:android="http://schemas.android.com/apk/res/android"
++    android:shape="rectangle">
++    <corners android:radius="@dimen/ntp_shortcut_icon_corner_radius" />
++    <solid android:color="@color/tile_view_icon_background_color" />
++</shape>
+diff --git a/chrome/android/java/res/drawable/ntp_shortcut_icon_highlight.xml b/chrome/android/java/res/drawable/ntp_shortcut_icon_highlight.xml
+new file mode 100644
+index 0000000..390decd
+--- /dev/null
++++ b/chrome/android/java/res/drawable/ntp_shortcut_icon_highlight.xml
+@@ -0,0 +1,11 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!-- Pressed-state ripple matching the NTP shortcut's rounded-square silhouette. -->
++<ripple xmlns:android="http://schemas.android.com/apk/res/android"
++    android:color="@color/color_on_surface_with_alpha_10">
++    <item android:id="@android:id/mask">
++        <shape android:shape="rectangle">
++            <corners android:radius="@dimen/ntp_shortcut_icon_corner_radius" />
++            <solid android:color="#FF000000" />
++        </shape>
++    </item>
++</ripple>
+diff --git a/chrome/android/java/res/drawable/ntp_shortcut_qq.xml b/chrome/android/java/res/drawable/ntp_shortcut_qq.xml
+new file mode 100644
+index 0000000..8e12397
+--- /dev/null
++++ b/chrome/android/java/res/drawable/ntp_shortcut_qq.xml
+@@ -0,0 +1,23 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!-- Bundled fallback used only when no favicon has been cached for a QQ URL. -->
++<vector xmlns:android="http://schemas.android.com/apk/res/android"
++    android:width="48dp"
++    android:height="48dp"
++    android:viewportWidth="48"
++    android:viewportHeight="48">
++    <path
++        android:fillColor="#FFFFFFFF"
++        android:pathData="M12,0H36C42.6,0 48,5.4 48,12V36C48,42.6 42.6,48 36,48H12C5.4,48 0,42.6 0,36V12C0,5.4 5.4,0 12,0Z" />
++    <path
++        android:fillColor="#FF111111"
++        android:pathData="M24,5c-6.7,0 -11.1,5.6 -11.1,13.5c0,2.3 0.4,4.5 1.1,6.4c-2.5,3.2 -4,6.7 -3,7.5c0.6,0.5 2.2,-0.1 4,-1.3c1.6,5.2 4.7,8.9 9,8.9s7.4,-3.7 9,-8.9c1.8,1.2 3.4,1.8 4,1.3c1,-0.8 -0.5,-4.3 -3,-7.5c0.7,-1.9 1.1,-4.1 1.1,-6.4C35.1,10.6 30.7,5 24,5z" />
++    <path
++        android:fillColor="#FFFFFFFF"
++        android:pathData="M18.5,14A2,3 0,1 0,18.5,20A2,3 0,1 0,18.5,14M29.5,14A2,3 0,1 0,29.5,20A2,3 0,1 0,29.5,14M17,24c0,7 2.5,11.5 7,11.5S31,31 31,24c-1.8,1.6 -4.1,2.4 -7,2.4s-5.2,-0.8 -7,-2.4z" />
++    <path
++        android:fillColor="#FFF44336"
++        android:pathData="M14.8,23.4c2.4,1.8 5.5,2.7 9.2,2.7s6.8,-0.9 9.2,-2.7l1.2,3c-2.9,2 -6.4,3 -10.4,3s-7.5,-1 -10.4,-3z" />
++    <path
++        android:fillColor="#FFFFC107"
++        android:pathData="M15,37c-2.8,0.5 -4.8,1.7 -4.5,2.8c0.3,1.2 3.4,1.3 6.9,0.4M33,37c2.8,0.5 4.8,1.7 4.5,2.8c-0.3,1.2 -3.4,1.3 -6.9,0.4" />
++</vector>
+diff --git a/chrome/android/java/res/drawable/ntp_shortcut_reddit.xml b/chrome/android/java/res/drawable/ntp_shortcut_reddit.xml
+new file mode 100644
+index 0000000..113db60
+--- /dev/null
++++ b/chrome/android/java/res/drawable/ntp_shortcut_reddit.xml
+@@ -0,0 +1,23 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!-- Bundled fallback used only when no favicon has been cached for a Reddit URL. -->
++<vector xmlns:android="http://schemas.android.com/apk/res/android"
++    android:width="48dp"
++    android:height="48dp"
++    android:viewportWidth="48"
++    android:viewportHeight="48">
++    <path
++        android:fillColor="#FFFF4500"
++        android:pathData="M12,0H36C42.6,0 48,5.4 48,12V36C48,42.6 42.6,48 36,48H12C5.4,48 0,42.6 0,36V12C0,5.4 5.4,0 12,0Z" />
++    <path
++        android:fillColor="#FFFFFFFF"
++        android:pathData="M38.5,24.1c0,-2.2 -1.8,-4 -4,-4c-1.1,0 -2.1,0.5 -2.9,1.2c-2,-1.3 -4.6,-2.1 -7.4,-2.2l1.5,-6.9l4.8,1c0.1,1.7 1.5,3 3.2,3c1.8,0 3.3,-1.5 3.3,-3.3s-1.5,-3.3 -3.3,-3.3c-1.3,0 -2.5,0.8 -3,1.9l-5.7,-1.2c-0.6,-0.1 -1.1,0.2 -1.2,0.8l-1.7,8c-2.9,0.2 -5.5,1 -7.5,2.3c-0.7,-0.8 -1.8,-1.3 -3,-1.3c-2.2,0 -4,1.8 -4,4c0,1.4 0.7,2.6 1.7,3.3c-0.1,0.5 -0.2,1 -0.2,1.5c0,5.5 6.7,10 14.9,10s14.9,-4.5 14.9,-10c0,-0.5 -0.1,-1 -0.2,-1.5c1.1,-0.7 1.8,-1.9 1.8,-3.3z" />
++    <path
++        android:fillColor="#FFFF4500"
++        android:pathData="M17.1,26.2A2.2,2.2 0,1 0,17.1,30.6A2.2,2.2 0,1 0,17.1,26.2M30.9,26.2A2.2,2.2 0,1 0,30.9,30.6A2.2,2.2 0,1 0,30.9,26.2" />
++    <path
++        android:fillColor="@android:color/transparent"
++        android:pathData="M17.8,32.7c1.7,1.7 3.7,2.3 6.2,2.3s4.5,-0.6 6.2,-2.3"
++        android:strokeColor="#FFFF4500"
++        android:strokeLineCap="round"
++        android:strokeWidth="1.8" />
++</vector>
+diff --git a/chrome/android/java/res/drawable/ntp_shortcut_x.xml b/chrome/android/java/res/drawable/ntp_shortcut_x.xml
+new file mode 100644
+index 0000000..6d711a5
+--- /dev/null
++++ b/chrome/android/java/res/drawable/ntp_shortcut_x.xml
+@@ -0,0 +1,14 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!-- Bundled fallback used only when no favicon has been cached for an X URL. -->
++<vector xmlns:android="http://schemas.android.com/apk/res/android"
++    android:width="48dp"
++    android:height="48dp"
++    android:viewportWidth="48"
++    android:viewportHeight="48">
++    <path
++        android:fillColor="#FF000000"
++        android:pathData="M12,0H36C42.6,0 48,5.4 48,12V36C48,42.6 42.6,48 36,48H12C5.4,48 0,42.6 0,36V12C0,5.4 5.4,0 12,0Z" />
++    <path
++        android:fillColor="#FFFFFFFF"
++        android:pathData="M11.2,10h8.7l6.2,8.3L33.4,10h3.4l-9.1,10.8L38,38h-8.7l-6.8,-9.1L14.8,38h-3.5l9.6,-11.5L11.2,10zM18.2,13H16l15,22h2.2L18.2,13z" />
++</vector>
+diff --git a/chrome/android/java/res/drawable/ntp_shortcut_youtube.xml b/chrome/android/java/res/drawable/ntp_shortcut_youtube.xml
+new file mode 100644
+index 0000000..6bdc72a
+--- /dev/null
++++ b/chrome/android/java/res/drawable/ntp_shortcut_youtube.xml
+@@ -0,0 +1,17 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!-- Bundled fallback used only when no favicon has been cached for a YouTube URL. -->
++<vector xmlns:android="http://schemas.android.com/apk/res/android"
++    android:width="48dp"
++    android:height="48dp"
++    android:viewportWidth="48"
++    android:viewportHeight="48">
++    <path
++        android:fillColor="#FFFF0000"
++        android:pathData="M12,0H36C42.6,0 48,5.4 48,12V36C48,42.6 42.6,48 36,48H12C5.4,48 0,42.6 0,36V12C0,5.4 5.4,0 12,0Z" />
++    <path
++        android:fillColor="#FFFFFFFF"
++        android:pathData="M11,14H37C40.3,14 43,16.7 43,20V28C43,31.3 40.3,34 37,34H11C7.7,34 5,31.3 5,28V20C5,16.7 7.7,14 11,14Z" />
++    <path
++        android:fillColor="#FFFF0000"
++        android:pathData="M20,31l11,-7l-11,-7z" />
++</vector>
+diff --git a/chrome/android/java/res/layout/mv_tiles_layout.xml b/chrome/android/java/res/layout/mv_tiles_layout.xml
+index f573311..1a4b225 100644
+--- a/chrome/android/java/res/layout/mv_tiles_layout.xml
++++ b/chrome/android/java/res/layout/mv_tiles_layout.xml
+@@ -5,17 +5,38 @@ Use of this source code is governed by a BSD-style license that can be
+ found in the LICENSE file.
+ -->
+ 
+-<HorizontalScrollView xmlns:android="http://schemas.android.com/apk/res/android"
++<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+     android:layout_width="match_parent"
+     android:layout_height="wrap_content"
+     android:background="@drawable/home_surface_ui_background"
++    android:orientation="vertical"
+     android:paddingTop="@dimen/mvt_container_top_padding"
+-    android:paddingBottom="@dimen/mvt_container_bottom_padding"
+-    android:scrollbars="none">
++    android:paddingBottom="@dimen/mvt_container_bottom_padding">
+ 
+-  <org.chromium.chrome.browser.suggestions.tile.MostVisitedTilesLayout
+-      android:id="@+id/mv_tiles_layout"
+-      android:layout_width="wrap_content"
+-      android:layout_height="match_parent"
+-      android:orientation="horizontal" />
+-</HorizontalScrollView>
++  <!-- Keep this wrapper for the existing drag APIs. The grid always matches its
++       viewport, so horizontal swipes have no scroll range. -->
++  <org.chromium.chrome.browser.suggestions.tile.NonScrollingHorizontalScrollView
++      android:layout_width="match_parent"
++      android:layout_height="wrap_content"
++      android:fillViewport="true"
++      android:overScrollMode="never"
++      android:scrollbars="none">
++
++    <org.chromium.chrome.browser.suggestions.tile.MostVisitedTilesLayout
++        android:id="@+id/mv_tiles_layout"
++        android:layout_width="match_parent"
++        android:layout_height="wrap_content"
++        android:orientation="horizontal" />
++  </org.chromium.chrome.browser.suggestions.tile.NonScrollingHorizontalScrollView>
++
++  <ImageButton
++      android:id="@+id/mvt_expand_button"
++      android:layout_width="48dp"
++      android:layout_height="40dp"
++      android:layout_gravity="center_horizontal"
++      android:background="?android:attr/selectableItemBackgroundBorderless"
++      android:contentDescription="@string/accessibility_expand_section"
++      android:padding="8dp"
++      android:src="@drawable/arrow_down"
++      android:visibility="gone" />
++</LinearLayout>
+diff --git a/chrome/android/java/res/values/dimens.xml b/chrome/android/java/res/values/dimens.xml
+index 62045cf..c51c569 100644
+--- a/chrome/android/java/res/values/dimens.xml
++++ b/chrome/android/java/res/values/dimens.xml
+@@ -145,6 +145,7 @@ found in the LICENSE file.
+     <dimen name="composeplate_view_margin_top">4dp</dimen>
+     <dimen name="mvt_container_top_padding">17dp</dimen>
+     <dimen name="mvt_container_bottom_padding">22dp</dimen>
++    <dimen name="ntp_shortcut_icon_corner_radius">12dp</dimen>
+     <dimen name="tile_layout_no_logo_top_margin">16dp</dimen>
+ 
+     <dimen name="content_suggestions_card_bottom_margin">12dp</dimen>
+diff --git a/chrome/android/java/src/org/chromium/chrome/browser/suggestions/ImageFetcher.java b/chrome/android/java/src/org/chromium/chrome/browser/suggestions/ImageFetcher.java
+index 613a227..7ba36bf 100644
+--- a/chrome/android/java/src/org/chromium/chrome/browser/suggestions/ImageFetcher.java
++++ b/chrome/android/java/src/org/chromium/chrome/browser/suggestions/ImageFetcher.java
+@@ -36,7 +36,7 @@ public class ImageFetcher {
+     /**
+      * Gets the large icon (e.g. favicon or touch icon) for a given URL.
+      *
+-     * If there is an error while fetching the icon, the callback will not be called.
++     * <p>If there is an error while fetching the icon, the callback will not be called.
+      *
+      * @param url The URL of the site whose icon is being requested.
+      * @param size The desired size of the icon in pixels.
+@@ -49,6 +49,21 @@ public class ImageFetcher {
+         getLargeIconBridge().getLargeIconForUrl(url, size, callback);
+     }
+ 
++    /**
++     * Gets a large icon while accepting a smaller source and requesting a higher-resolution result.
++     *
++     * @param url The URL of the site whose icon is being requested.
++     * @param minSize The minimum acceptable source size in pixels.
++     * @param desiredSize The preferred output size in pixels.
++     * @param callback The callback to be notified when the icon is available.
++     */
++    public void makeLargeIconRequest(
++            GURL url, int minSize, int desiredSize, LargeIconBridge.LargeIconCallback callback) {
++        assert !mIsDestroyed;
++
++        getLargeIconBridge().getLargeIconForUrl(url, minSize, desiredSize, callback);
++    }
++
+     public void onDestroy() {
+         if (mLargeIconBridge != null) {
+             mLargeIconBridge.destroy();
+diff --git a/chrome/android/java/src/org/chromium/chrome/browser/suggestions/SuggestionsConfig.java b/chrome/android/java/src/org/chromium/chrome/browser/suggestions/SuggestionsConfig.java
+index 568d330..19f859d 100644
+--- a/chrome/android/java/src/org/chromium/chrome/browser/suggestions/SuggestionsConfig.java
++++ b/chrome/android/java/src/org/chromium/chrome/browser/suggestions/SuggestionsConfig.java
+@@ -26,10 +26,10 @@ public final class SuggestionsConfig {
+      * Maximum number of tiles that is explicitly supported. UMA relies on this value, so even if
+      * the UI supports it, getting more can raise unexpected issues.
+      */
+-    public static final int MAX_TILE_COUNT = 8;
++    public static final int MAX_TILE_COUNT = 20;
+ 
+     /** Maximum number of custom tiles supported. In C++ backend this is `kMaxNumCustomLinks`. */
+-    public static final int MAX_NUM_CUSTOM_LINKS = 8;
++    public static final int MAX_NUM_CUSTOM_LINKS = 20;
+ 
+     /** Maximum length of Custom Tiles name. */
+     public static final int MAX_CUSTOM_TILES_NAME_LENGTH = 50;
+diff --git a/chrome/android/java/src/org/chromium/chrome/browser/suggestions/tile/MostVisitedTilesLayout.java b/chrome/android/java/src/org/chromium/chrome/browser/suggestions/tile/MostVisitedTilesLayout.java
+index 7828de9..f5db4f0 100644
+--- a/chrome/android/java/src/org/chromium/chrome/browser/suggestions/tile/MostVisitedTilesLayout.java
++++ b/chrome/android/java/src/org/chromium/chrome/browser/suggestions/tile/MostVisitedTilesLayout.java
+@@ -23,61 +23,49 @@ import org.chromium.chrome.browser.user_education.IphCommandBuilder;
+ import org.chromium.chrome.browser.user_education.UserEducationHelper;
+ import org.chromium.components.browser_ui.widget.tile.TileView;
+ import org.chromium.components.feature_engagement.FeatureConstants;
+-import org.chromium.ui.base.DeviceFormFactor;
++
++import java.util.ArrayList;
++import java.util.List;
+ 
+ /** The most visited tiles layout. */
+ @NullMarked
+ public class MostVisitedTilesLayout extends TilesLinearLayout {
+ 
+-    private final boolean mIsLff;
+-    private final @Px int mTileViewWidth;
+-    private final @Px int mIntervalPaddingsTablet;
+-    private final @Px int mEdgePaddingsTablet;
+-    private final @Px int mTileViewDividerWidth;
+-    private @Nullable Integer mTileToMoveInViewIdx;
++    private static final int COLUMN_COUNT = 4;
++    private static final int COLLAPSED_ITEM_LIMIT = 12;
++
++    private final @Px int mFallbackTileViewWidth;
++    private final @Px int mRowSpacing;
+     private @Nullable Runnable mTriggerIphTask;
+     private @Nullable SuggestionsTileVerticalDivider mDivider;
+-    private @Nullable Integer mDividerIndex;
++    private List<Integer> mRowHeights = new ArrayList<>();
++    private boolean mExpanded;
+ 
+     /** Constructor for inflating from XML. */
+     public MostVisitedTilesLayout(Context context, AttributeSet attrs) {
+         super(context, attrs);
+-        mIsLff = DeviceFormFactor.isNonMultiDisplayContextOnTablet(context);
+ 
+         Resources resources = getResources();
+-        mTileViewWidth =
+-                resources.getDimensionPixelSize(
+-                        mIsLff ? R.dimen.tile_view_width_condensed : R.dimen.tile_view_width);
+-        mIntervalPaddingsTablet =
+-                resources.getDimensionPixelSize(R.dimen.tile_view_padding_interval_tablet);
+-        mEdgePaddingsTablet =
+-                resources.getDimensionPixelSize(R.dimen.tile_view_padding_edge_tablet);
+-        mTileViewDividerWidth = resources.getDimensionPixelSize(R.dimen.tile_view_divider_width);
++        mFallbackTileViewWidth = resources.getDimensionPixelSize(R.dimen.tile_view_width);
++        mRowSpacing = resources.getDimensionPixelSize(R.dimen.tile_view_padding);
+     }
+ 
+     @Override
+     public void removeAllViews() {
+         super.removeAllViews();
+         mDivider = null;
+-        mDividerIndex = null;
+     }
+ 
+     @Override
+     void setIntervalMargins(@Px int margin) {
+-        super.setIntervalMargins(margin);
+-
+-        if (mDivider != null) {
+-            assert mDividerIndex != null;
+-            // Let M = margin, W = divider width, A = adjusted margin. Desired apparent margin that
+-            // pretends divider absence is M = A + W + A, so A = (M - W) / 2.
+-            @Px int adjustedMargin = (margin - mTileViewDividerWidth) / 2;
+-            // Update the start margins of the divider and its next sibling.
+-            updateViewStartMargin(mDivider, adjustedMargin);
+-            View childAfterDivider = getChildAt(mDividerIndex + 1);
+-            if (childAfterDivider != null) {
+-                updateViewStartMargin(childAfterDivider, adjustedMargin);
+-            }
+-        }
++        // Column slots provide the horizontal spacing for the wrapping grid.
++        requestLayout();
++    }
++
++    @Override
++    void setEdgeMargins(@Px int margin) {
++        // Column slots center each item, so no scrolling edge margin is needed.
++        requestLayout();
+     }
+ 
+     @Override
+@@ -87,7 +75,6 @@ public class MostVisitedTilesLayout extends TilesLinearLayout {
+ 
+         // Take the first divider found and assume it's the only one.
+         mDivider = divider;
+-        mDividerIndex = getChildCount() - 1;
+         mDivider.hide(/* isAnimated= */ false);
+     }
+ 
+@@ -104,47 +91,22 @@ public class MostVisitedTilesLayout extends TilesLinearLayout {
+         return ((SuggestionsTileView) tileView).getData();
+     }
+ 
+-    /**
+-     * Returns whether all the tiles and non-tiles, with a small margin would fit within a container
+-     * with the given {@param totalWidth} without the need to scroll. For large form factors (LFF)
+-     * only.
+-     */
+-    public boolean contentFitsOnLff(int totalWidth) {
+-        return totalWidth >= 2 * mEdgePaddingsTablet + getTabletContentWidth();
+-    }
+-
+-    /** Returns the total width of tiles, UI Views, and interval paddings. */
+-    @Px
+-    int getTabletContentWidth() {
+-        return (int)
+-                (mTileViewWidth * getTileCount()
+-                        + mUiViewsTotalWidth
+-                        + mIntervalPaddingsTablet * (mTileAndUiViewCount - 1));
++    /** Retained for callers that previously requested horizontal scrolling to a new tile. */
++    void ensureTileIsInViewOnNextLayout(int tileIdx) {
++        // The grid has no horizontal viewport. Items after the third row are
++        // intentionally revealed only through the expand control.
+     }
+ 
+-    /**
+-     * Adjusts the edge margin of the tile elements when they are displayed in the center of the NTP
+-     * on large form factor (LFF) devices.
+-     *
+-     * @param totalWidth The width of the mv tiles container.
+-     */
+-    void updateEdgeMarginLff(int totalWidth) {
+-        // If content fits within `totalWidth`, then return the required margin to center it. Else
+-        // scrolling would be needed, so return a fixed margin for the scrolled content.
+-        int edgeMargin =
+-                contentFitsOnLff(totalWidth)
+-                        ? (totalWidth - getTabletContentWidth()) / 2
+-                        : mEdgePaddingsTablet;
+-        setEdgeMargins(edgeMargin);
++    /** Returns whether the collapsed grid omits any tile or UI item. */
++    boolean hasHiddenItems() {
++        return mTileAndUiViewCount > COLLAPSED_ITEM_LIMIT;
+     }
+ 
+-    /**
+-     * Tags the {@link TileView} at {@param tileIdx} so that on next Layout, minimal scroll is
+-     * performed to ensure it's in-view.
+-     */
+-    void ensureTileIsInViewOnNextLayout(int tileIdx) {
+-        // If a value exists, simply overwrite it since the old value is likely new irrelevant.
+-        mTileToMoveInViewIdx = tileIdx;
++    /** Shows all items or limits the grid to three rows. */
++    void setExpanded(boolean expanded) {
++        if (mExpanded == expanded) return;
++        mExpanded = expanded;
++        requestLayout();
+     }
+ 
+     /**
+@@ -175,22 +137,108 @@ public class MostVisitedTilesLayout extends TilesLinearLayout {
+     @Override
+     @Initializer
+     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+-        if (mIsLff) {
+-            updateEdgeMarginLff(MeasureSpec.getSize(widthMeasureSpec));
++        int widthMode = MeasureSpec.getMode(widthMeasureSpec);
++        int measuredWidth = MeasureSpec.getSize(widthMeasureSpec);
++        if (widthMode == MeasureSpec.UNSPECIFIED) {
++            measuredWidth =
++                    getPaddingLeft() + getPaddingRight() + COLUMN_COUNT * mFallbackTileViewWidth;
+         }
+-        super.onMeasure(widthMeasureSpec, heightMeasureSpec);
++
++        int availableWidth = Math.max(0, measuredWidth - getPaddingLeft() - getPaddingRight());
++        int columnWidth = availableWidth / COLUMN_COUNT;
++        int visibleItemLimit = mExpanded ? Integer.MAX_VALUE : COLLAPSED_ITEM_LIMIT;
++        int itemIndex = 0;
++        mRowHeights = new ArrayList<>();
++
++        for (int i = 0; i < getChildCount(); i++) {
++            View child = getChildAt(i);
++            if (child instanceof SuggestionsTileVerticalDivider) {
++                child.setVisibility(GONE);
++                continue;
++            }
++
++            boolean isVisible = itemIndex < visibleItemLimit;
++            child.setVisibility(isVisible ? VISIBLE : GONE);
++            if (isVisible) {
++                MarginLayoutParams params = (MarginLayoutParams) child.getLayoutParams();
++                int maxChildWidth =
++                        Math.max(0, columnWidth - params.leftMargin - params.rightMargin);
++                int childWidth =
++                        params.width >= 0 ? Math.min(params.width, maxChildWidth) : maxChildWidth;
++                int childWidthSpec = MeasureSpec.makeMeasureSpec(childWidth, MeasureSpec.EXACTLY);
++                int childHeightSpec =
++                        getChildMeasureSpec(
++                                heightMeasureSpec,
++                                getPaddingTop()
++                                        + getPaddingBottom()
++                                        + params.topMargin
++                                        + params.bottomMargin,
++                                params.height);
++                child.measure(childWidthSpec, childHeightSpec);
++
++                int row = itemIndex / COLUMN_COUNT;
++                while (mRowHeights.size() <= row) {
++                    mRowHeights.add(0);
++                }
++                int childHeight =
++                        child.getMeasuredHeight() + params.topMargin + params.bottomMargin;
++                mRowHeights.set(row, Math.max(mRowHeights.get(row), childHeight));
++            }
++            itemIndex++;
++        }
++
++        int desiredHeight = getPaddingTop() + getPaddingBottom();
++        for (int rowHeight : mRowHeights) {
++            desiredHeight += rowHeight;
++        }
++        if (mRowHeights.size() > 1) {
++            desiredHeight += (mRowHeights.size() - 1) * mRowSpacing;
++        }
++        setMeasuredDimension(
++                resolveSize(measuredWidth, widthMeasureSpec),
++                resolveSize(desiredHeight, heightMeasureSpec));
+     }
+ 
+     @Override
+     public void onLayout(boolean changed, int left, int top, int right, int bottom) {
+-        super.onLayout(changed, left, top, right, bottom);
+-        if (mTileToMoveInViewIdx != null) {
+-            Integer scrollXPx = getScrollXToMakeTileVisible(mTileToMoveInViewIdx);
+-            if (scrollXPx != null) {
+-                HorizontalScrollView parent = (HorizontalScrollView) getParent();
+-                parent.smoothScrollTo(scrollXPx.intValue(), 0);
+-            }
+-            mTileToMoveInViewIdx = null;
++        int availableWidth = Math.max(0, getWidth() - getPaddingLeft() - getPaddingRight());
++        int columnWidth = availableWidth / COLUMN_COUNT;
++        int[] rowTops = new int[mRowHeights.size()];
++        int nextRowTop = getPaddingTop();
++        for (int i = 0; i < mRowHeights.size(); i++) {
++            rowTops[i] = nextRowTop;
++            nextRowTop += mRowHeights.get(i) + mRowSpacing;
++        }
++
++        int itemIndex = 0;
++        boolean isRtl = getLayoutDirection() == LAYOUT_DIRECTION_RTL;
++        for (int i = 0; i < getChildCount(); i++) {
++            View child = getChildAt(i);
++            if (child.getVisibility() == GONE) continue;
++
++            int row = itemIndex / COLUMN_COUNT;
++            int column = itemIndex % COLUMN_COUNT;
++            if (isRtl) column = COLUMN_COUNT - 1 - column;
++
++            MarginLayoutParams params = (MarginLayoutParams) child.getLayoutParams();
++            int slotLeft = getPaddingLeft() + column * columnWidth;
++            int childLeft =
++                    slotLeft
++                            + params.leftMargin
++                            + Math.max(
++                                    0,
++                                    (columnWidth
++                                                    - params.leftMargin
++                                                    - params.rightMargin
++                                                    - child.getMeasuredWidth())
++                                            / 2);
++            int childTop = rowTops[row] + params.topMargin;
++            child.layout(
++                    childLeft,
++                    childTop,
++                    childLeft + child.getMeasuredWidth(),
++                    childTop + child.getMeasuredHeight());
++            itemIndex++;
+         }
+ 
+         if (mTriggerIphTask != null) {
+@@ -206,27 +254,4 @@ public class MostVisitedTilesLayout extends TilesLinearLayout {
+     public @Nullable SuggestionsTileVerticalDivider getDividerMaybeNull() {
+         return mDivider;
+     }
+-
+-    private @Nullable Integer getScrollXToMakeTileVisible(int tileIdx) {
+-        if (tileIdx >= getTileCount()) {
+-            return null;
+-        }
+-        HorizontalScrollView scrollView = getScrollView();
+-        @Px float tileXPx = getTileAt(tileIdx).getX();
+-        @Px int scrollXPx = scrollView.getScrollX();
+-        // If scroll position is too high so that the tile is out-of-view / truncated, scroll left
+-        // so that the tile appears on the left edge (RTL doesn't matter).
+-        @Px int scrollXHiPx = (int) tileXPx;
+-        if (scrollXPx > scrollXHiPx) {
+-            return scrollXHiPx;
+-        }
+-        // If scroll position is too low so that the tile is out-of-view / truncated, scroll right
+-        // so that the tile appears on the right edge (RTL doesn't matter).
+-        @Px int scrollXLoPx = (int) (tileXPx + mTileViewWidth - scrollView.getWidth());
+-        if (scrollXPx < scrollXLoPx) {
+-            return scrollXLoPx;
+-        }
+-        // Entire tile is in-view; no scroll is needed.
+-        return null;
+-    }
+ }
+diff --git a/chrome/android/java/src/org/chromium/chrome/browser/suggestions/tile/MostVisitedTilesMediator.java b/chrome/android/java/src/org/chromium/chrome/browser/suggestions/tile/MostVisitedTilesMediator.java
+index 603d19c..024b545 100644
+--- a/chrome/android/java/src/org/chromium/chrome/browser/suggestions/tile/MostVisitedTilesMediator.java
++++ b/chrome/android/java/src/org/chromium/chrome/browser/suggestions/tile/MostVisitedTilesMediator.java
+@@ -53,6 +53,7 @@ public class MostVisitedTilesMediator implements TileGroup.Observer {
+     private final UiConfig mUiConfig;
+     private final View mMvTilesContainerLayout;
+     private final MostVisitedTilesLayout mMvTilesLayout;
++    private final View mExpandButton;
+     private final PropertyModel mModel;
+     private final boolean mIsLff;
+     private final int mTileViewLandscapePadding;
+@@ -66,7 +67,7 @@ public class MostVisitedTilesMediator implements TileGroup.Observer {
+     private TileRenderer mRenderer;
+     private TileGroup mTileGroup;
+     private UserEducationHelper mUserEducationHelper;
+-    private boolean mMvtContentFits;
++    private boolean mIsExpanded;
+ 
+     private final int mLateralMarginSum;
+     private final int mTileViewEdgePaddingForTablet;
+@@ -90,7 +91,16 @@ public class MostVisitedTilesMediator implements TileGroup.Observer {
+         mSnapshotTileGridChangedRunnable = snapshotTileGridChangedRunnable;
+         mTileCountChangedRunnable = tileCountChangedRunnable;
+         mMvTilesContainerLayout = mvTilesContainerLayout;
+-        mMvTilesLayout = mvTilesContainerLayout.findViewById(R.id.mv_tiles_layout);
++        mMvTilesLayout = assumeNonNull(mvTilesContainerLayout.findViewById(R.id.mv_tiles_layout));
++        mExpandButton = assumeNonNull(mvTilesContainerLayout.findViewById(R.id.mvt_expand_button));
++        mExpandButton.setOnClickListener(
++                (view) -> {
++                    mIsExpanded = !mIsExpanded;
++                    updateExpansionControl();
++                    if (mSnapshotTileGridChangedRunnable != null) {
++                        mSnapshotTileGridChangedRunnable.run();
++                    }
++                });
+ 
+         mTileViewLandscapePadding =
+                 mResources.getDimensionPixelSize(R.dimen.tile_view_padding_landscape);
+@@ -154,6 +164,7 @@ public class MostVisitedTilesMediator implements TileGroup.Observer {
+         assumeNonNull(tiles);
+         mRenderer.renderTileSection(tiles, mMvTilesLayout, mTileGroup.getTileSetupDelegate());
+         mTileGroup.notifyTilesRendered();
++        updateExpansionControl();
+         updateTilesView();
+ 
+         if (mSnapshotTileGridChangedRunnable != null) mSnapshotTileGridChangedRunnable.run();
+@@ -166,6 +177,7 @@ public class MostVisitedTilesMediator implements TileGroup.Observer {
+     public void onTileCountChanged() {
+         if (mTileCountChangedRunnable != null) mTileCountChangedRunnable.run();
+ 
++        updateExpansionControl();
+         updateMvtVisibility();
+     }
+ 
+@@ -220,6 +232,7 @@ public class MostVisitedTilesMediator implements TileGroup.Observer {
+         if (mMvtVisibilityListener != null) {
+             NtpCustomizationConfigManager.getInstance().removeListener(mMvtVisibilityListener);
+         }
++        mExpandButton.setOnClickListener(null);
+     }
+ 
+     public boolean isMVTilesCleanedUp() {
+@@ -227,23 +240,15 @@ public class MostVisitedTilesMediator implements TileGroup.Observer {
+     }
+ 
+     /**
+-     * Updates the width of the MV tiles container. If on a large form factor (LFF) device and the
+-     * content fits, it uses WRAP_CONTENT to center the tiles. Otherwise, it applies the provided
+-     * totalWidth. Also updates the lateral margins.
++     * Updates the width of the shortcut grid and its lateral margins.
+      *
+-     * @param totalWidth The total width to apply or check against. If null, the applied width falls
+-     *     back to MATCH_PARENT.
++     * @param totalWidth The total width to apply. If null, the applied width falls back to
++     *     MATCH_PARENT.
+      */
+     void updateMvtWidth(@Nullable Integer totalWidth) {
+-        if (mIsLff && totalWidth != null) {
+-            mMvtContentFits = mMvTilesLayout.contentFitsOnLff(totalWidth);
+-        }
+-
+         MarginLayoutParams marginLayoutParams =
+                 (MarginLayoutParams) mMvTilesContainerLayout.getLayoutParams();
+-        if (mIsLff && mMvtContentFits) {
+-            marginLayoutParams.width = ViewGroup.LayoutParams.WRAP_CONTENT;
+-        } else if (totalWidth != null) {
++        if (totalWidth != null) {
+             marginLayoutParams.width = totalWidth;
+         } else {
+             marginLayoutParams.width = ViewGroup.LayoutParams.MATCH_PARENT;
+@@ -258,6 +263,22 @@ public class MostVisitedTilesMediator implements TileGroup.Observer {
+         marginLayoutParams.rightMargin = lateralPaddingsForNtp;
+     }
+ 
++    private void updateExpansionControl() {
++        boolean hasHiddenItems = mMvTilesLayout.hasHiddenItems();
++        if (!hasHiddenItems) {
++            mIsExpanded = false;
++        }
++
++        mMvTilesLayout.setExpanded(mIsExpanded);
++        mExpandButton.setVisibility(hasHiddenItems ? View.VISIBLE : View.GONE);
++        mExpandButton.setRotation(mIsExpanded ? 180f : 0f);
++        mExpandButton.setContentDescription(
++                mContext.getString(
++                        mIsExpanded
++                                ? R.string.accessibility_collapse_section
++                                : R.string.accessibility_expand_section));
++    }
++
+     /**
+      * Updates the margins for the most visited tiles layout based on what is shown above it.
+      *
+@@ -306,9 +327,8 @@ public class MostVisitedTilesMediator implements TileGroup.Observer {
+                             isSmallDevice
+                                     ? R.dimen.tile_view_width_condensed
+                                     : R.dimen.tile_view_width);
+-            // We want to show four and a half tile view to make users know the MV tiles are
+-            // scrollable. But the padding should be equal to or larger than tile_view_padding,
+-            // otherwise the titles among tiles would be overlapped.
++            // The grid owns actual column placement. Preserve the model value for callers that
++            // still observe the legacy horizontal-spacing property.
+             mTileViewPortraitIntervalPadding =
+                     Integer.max(
+                             -mResources.getDimensionPixelOffset(R.dimen.tile_view_padding),
+diff --git a/chrome/android/java/src/org/chromium/chrome/browser/suggestions/tile/NonScrollingHorizontalScrollView.java b/chrome/android/java/src/org/chromium/chrome/browser/suggestions/tile/NonScrollingHorizontalScrollView.java
+new file mode 100644
+index 0000000..383163d
+--- /dev/null
++++ b/chrome/android/java/src/org/chromium/chrome/browser/suggestions/tile/NonScrollingHorizontalScrollView.java
+@@ -0,0 +1,78 @@
++// Copyright 2026 The Chromium Authors
++// Use of this source code is governed by a BSD-style license that can be
++// found in the LICENSE file.
++
++package org.chromium.chrome.browser.suggestions.tile;
++
++import android.content.Context;
++import android.util.AttributeSet;
++import android.view.MotionEvent;
++import android.view.View;
++import android.view.ViewGroup.MarginLayoutParams;
++import android.widget.HorizontalScrollView;
++
++import org.chromium.build.annotations.NullMarked;
++
++/**
++ * A compatibility wrapper for tile drag APIs that does not expose horizontal scrolling.
++ *
++ * <p>The shortcut grid wraps vertically and is always measured to the viewport width.
++ */
++@NullMarked
++public final class NonScrollingHorizontalScrollView extends HorizontalScrollView {
++    public NonScrollingHorizontalScrollView(Context context, AttributeSet attrs) {
++        super(context, attrs);
++    }
++
++    @Override
++    public boolean onInterceptTouchEvent(MotionEvent event) {
++        return false;
++    }
++
++    @Override
++    public boolean onTouchEvent(MotionEvent event) {
++        return false;
++    }
++
++    @Override
++    protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
++        int measuredWidth = MeasureSpec.getSize(widthMeasureSpec);
++        if (getChildCount() == 0) {
++            setMeasuredDimension(
++                    resolveSize(measuredWidth, widthMeasureSpec),
++                    resolveSize(getPaddingTop() + getPaddingBottom(), heightMeasureSpec));
++            return;
++        }
++
++        View child = getChildAt(0);
++        MarginLayoutParams params = (MarginLayoutParams) child.getLayoutParams();
++        int childWidth =
++                Math.max(
++                        0,
++                        measuredWidth
++                                - getPaddingLeft()
++                                - getPaddingRight()
++                                - params.leftMargin
++                                - params.rightMargin);
++        int childWidthSpec = MeasureSpec.makeMeasureSpec(childWidth, MeasureSpec.EXACTLY);
++        int childHeightSpec =
++                getChildMeasureSpec(
++                        heightMeasureSpec,
++                        getPaddingTop()
++                                + getPaddingBottom()
++                                + params.topMargin
++                                + params.bottomMargin,
++                        params.height);
++        child.measure(childWidthSpec, childHeightSpec);
++
++        int desiredHeight =
++                getPaddingTop()
++                        + getPaddingBottom()
++                        + params.topMargin
++                        + child.getMeasuredHeight()
++                        + params.bottomMargin;
++        setMeasuredDimension(
++                resolveSize(measuredWidth, widthMeasureSpec),
++                resolveSize(desiredHeight, heightMeasureSpec));
++    }
++}
+diff --git a/chrome/android/java/src/org/chromium/chrome/browser/suggestions/tile/SuggestionsTileView.java b/chrome/android/java/src/org/chromium/chrome/browser/suggestions/tile/SuggestionsTileView.java
+index cc44799..3c0aade 100644
+--- a/chrome/android/java/src/org/chromium/chrome/browser/suggestions/tile/SuggestionsTileView.java
++++ b/chrome/android/java/src/org/chromium/chrome/browser/suggestions/tile/SuggestionsTileView.java
+@@ -7,12 +7,15 @@ package org.chromium.chrome.browser.suggestions.tile;
+ import android.content.Context;
+ import android.content.res.Resources;
+ import android.util.AttributeSet;
++import android.view.View;
++import android.widget.ImageView;
+ 
+ import org.chromium.build.annotations.Initializer;
+ import org.chromium.build.annotations.NullMarked;
+ import org.chromium.chrome.R;
+ import org.chromium.chrome.browser.ntp.TitleUtil;
+ import org.chromium.chrome.browser.suggestions.SiteSuggestion;
++import org.chromium.components.browser_ui.widget.RoundedCornerOutlineProvider;
+ import org.chromium.components.browser_ui.widget.tile.TileView;
+ import org.chromium.url.GURL;
+ 
+@@ -45,15 +48,14 @@ public class SuggestionsTileView extends TileView {
+      */
+     @Initializer
+     public void initialize(Tile tile, int titleLines) {
+-        boolean showPinnedShortcutBadge = tile.getSource() == TileSource.CUSTOM_LINKS;
+         super.initialize(
+                 TitleUtil.getTitleForDisplay(tile.getTitle(), tile.getUrl()),
+                 tile.isOfflineAvailable(),
+-                showPinnedShortcutBadge,
++                /* showPinnedShortcutBadge= */ false,
+                 tile.getIcon(),
+                 titleLines);
+         mData = tile.getData();
+-        setIconViewLayoutParams(tile);
++        useSquareIconStyle();
+     }
+ 
+     /** Retrieves data associated with this view. */
+@@ -69,7 +71,7 @@ public class SuggestionsTileView extends TileView {
+     /** Renders icon based on tile data. */
+     public void renderIcon(Tile tile) {
+         setIconDrawable(tile.getIcon());
+-        setIconViewLayoutParams(tile);
++        useSquareIconStyle();
+         setIconTint(tile.getIconTint());
+     }
+ 
+@@ -77,21 +79,28 @@ public class SuggestionsTileView extends TileView {
+         setOfflineBadgeVisibility(tile.isOfflineAvailable());
+     }
+ 
+-    protected void setIconViewLayoutParams(Tile tile) {
++    /**
++     * Uses one full-size rounded-square icon slot. Small favicons are enlarged proportionally
++     * without cropping or changing their aspect ratio. This is kept local to NTP shortcuts so other
++     * TileView users retain their existing circular treatment.
++     */
++    void useSquareIconStyle() {
+         MarginLayoutParams params = (MarginLayoutParams) mIconView.getLayoutParams();
+         Resources resources = getResources();
+-        if (tile.getType() == TileVisualType.ICON_COLOR
+-                || tile.getType() == TileVisualType.ICON_DEFAULT) {
+-            params.width = resources.getDimensionPixelSize(R.dimen.tile_view_monogram_size_modern);
+-            params.height = resources.getDimensionPixelSize(R.dimen.tile_view_monogram_size_modern);
+-            params.topMargin =
+-                    resources.getDimensionPixelSize(R.dimen.tile_view_monogram_margin_top_modern);
+-        } else {
+-            params.width = resources.getDimensionPixelSize(R.dimen.tile_view_icon_size_modern);
+-            params.height = resources.getDimensionPixelSize(R.dimen.tile_view_icon_size_modern);
+-            params.topMargin =
+-                    resources.getDimensionPixelSize(R.dimen.tile_view_icon_margin_top_modern);
+-        }
++        int iconSize = resources.getDimensionPixelSize(R.dimen.tile_view_icon_size);
++        int cornerRadius = resources.getDimensionPixelSize(R.dimen.ntp_shortcut_icon_corner_radius);
++        params.width = iconSize;
++        params.height = iconSize;
++        params.topMargin =
++                resources.getDimensionPixelSize(
++                        R.dimen.tile_view_icon_background_margin_top_modern);
+         mIconView.setLayoutParams(params);
++        mIconView.setScaleType(ImageView.ScaleType.FIT_CENTER);
++        mIconView.setOutlineProvider(new RoundedCornerOutlineProvider(cornerRadius));
++        mIconView.setClipToOutline(true);
++
++        mIconBackgroundView.setBackgroundResource(R.drawable.ntp_shortcut_icon_background);
++        View highlight = findViewById(R.id.tile_view_highlight);
++        highlight.setBackgroundResource(R.drawable.ntp_shortcut_icon_highlight);
+     }
+ }
+diff --git a/chrome/android/java/src/org/chromium/chrome/browser/suggestions/tile/TileRenderer.java b/chrome/android/java/src/org/chromium/chrome/browser/suggestions/tile/TileRenderer.java
+index 1732e8d..674ad9f 100644
+--- a/chrome/android/java/src/org/chromium/chrome/browser/suggestions/tile/TileRenderer.java
++++ b/chrome/android/java/src/org/chromium/chrome/browser/suggestions/tile/TileRenderer.java
+@@ -43,6 +43,7 @@ import org.chromium.components.favicon.LargeIconBridge;
+ import org.chromium.components.feature_engagement.EventConstants;
+ import org.chromium.components.feature_engagement.Tracker;
+ import org.chromium.ui.base.ViewUtils;
++import org.chromium.url.GURL;
+ 
+ import java.lang.ref.WeakReference;
+ import java.util.ArrayDeque;
+@@ -64,7 +65,6 @@ public class TileRenderer {
+     private final int mDesiredIconSize;
+     private final int mMinIconSize;
+     private final float mIconCornerRadius;
+-    private final String mPinnedShortcutString;
+     private int mTitleLinesCount;
+     private boolean mNativeInitializationComplete;
+     private @Nullable Profile mProfile;
+@@ -91,7 +91,12 @@ public class TileRenderer {
+             if (tile != null) { // Do nothing if the tile was removed.
+                 tile.setIconType(iconType);
+                 if (icon == null) {
+-                    setTileIconFromColor(tile, fallbackColor, isFallbackColorDefault);
++                    @DrawableRes int bundledIcon = getBundledSiteIcon(tile.getUrl());
++                    if (bundledIcon != 0) {
++                        setTileIconFromResource(tile, bundledIcon);
++                    } else {
++                        setTileIconFromColor(tile, fallbackColor, isFallbackColorDefault);
++                    }
+                 } else {
+                     setTileIconFromBitmap(tile, icon);
+                 }
+@@ -141,9 +146,8 @@ public class TileRenderer {
+         mContext = context;
+         Resources res = mContext.getResources();
+         mDesiredIconSize = res.getDimensionPixelSize(R.dimen.tile_view_icon_size);
+-        mIconCornerRadius = res.getDimension(R.dimen.tile_view_icon_corner_radius);
++        mIconCornerRadius = res.getDimension(R.dimen.ntp_shortcut_icon_corner_radius);
+         int minIconSize = res.getDimensionPixelSize(R.dimen.tile_view_icon_min_size);
+-        mPinnedShortcutString = res.getString(R.string.accessibility_ntp_pinned_shortcut_badge);
+ 
+         // On ldpi devices, mDesiredIconSize could be even smaller than the global limit.
+         mMinIconSize = Math.min(mDesiredIconSize, minIconSize);
+@@ -157,7 +161,7 @@ public class TileRenderer {
+                 new RoundedIconGenerator(
+                         mDesiredIconSize,
+                         mDesiredIconSize,
+-                        mDesiredIconSize / 2,
++                        Math.round(mIconCornerRadius),
+                         iconColor,
+                         iconTextSize);
+     }
+@@ -360,6 +364,7 @@ public class TileRenderer {
+                 /* showPinnedShortcutBadge= */ false,
+                 plusIcon,
+                 mTitleLinesCount);
++        ((SuggestionsTileView) tileView).useSquareIconStyle();
+         tileView.setIconTint(
+                 ChromeColors.getSecondaryIconTint(mContext, /* forceLightIconTint= */ false));
+         tileView.setContentDescription(
+@@ -387,6 +392,35 @@ public class TileRenderer {
+         return TileUtils.isSearchTile(mProfile, tile);
+     }
+ 
++    private static @DrawableRes int getBundledSiteIcon(GURL url) {
++        String host = url.getHost();
++        if (isDomain(host, "google.com")
++                || isDomain(host, "google.cn")
++                || host.matches("(www\\.)?google\\.[a-z]{2,3}(\\.[a-z]{2})?")) {
++            return R.drawable.ntp_shortcut_google;
++        }
++        if (isDomain(host, "reddit.com") || isDomain(host, "redd.it")) {
++            return R.drawable.ntp_shortcut_reddit;
++        }
++        if (isDomain(host, "x.com") || isDomain(host, "twitter.com")) {
++            return R.drawable.ntp_shortcut_x;
++        }
++        if (isDomain(host, "youtube.com") || isDomain(host, "youtu.be")) {
++            return R.drawable.ntp_shortcut_youtube;
++        }
++        if (isDomain(host, "qq.com")) {
++            return R.drawable.ntp_shortcut_qq;
++        }
++        if (isDomain(host, "github.com")) {
++            return R.drawable.ntp_shortcut_github;
++        }
++        return 0;
++    }
++
++    private static boolean isDomain(String host, String domain) {
++        return host.equals(domain) || host.endsWith("." + domain);
++    }
++
+     /**
+      * Notify the component that the native initialization has completed and the component can
+      * safely execute native code.
+@@ -412,14 +446,10 @@ public class TileRenderer {
+                             R.string.accessibility_omnibox_most_visited_tile_search,
+                             tile.getTitle()));
+         } else {
+-            String title = tile.getTitle();
+-            if (tile.getData().source == TileSource.CUSTOM_LINKS) {
+-                title += ": " + mPinnedShortcutString;
+-            }
+             tileView.setContentDescription(
+                     mContext.getString(
+                             R.string.accessibility_omnibox_most_visited_tile_navigate,
+-                            title,
++                            tile.getTitle(),
+                             tile.getUrl().getHost()));
+         }
+     }
+@@ -434,11 +464,18 @@ public class TileRenderer {
+         if (isSearchTile(tile)) {
+             setTileIconFromResAsync(tile, setupDelegate, R.drawable.ic_suggestion_magnifier);
+ 
+-        } else if (mImageFetcher != null) {
+-            mImageFetcher.makeLargeIconRequest(
+-                    tile.getUrl(),
+-                    mMinIconSize,
+-                    new LargeIconCallbackImpl(tile, setupDelegate.createIconLoadCallback(tile)));
++        } else {
++            @DrawableRes int bundledIcon = getBundledSiteIcon(tile.getUrl());
++            if (bundledIcon != 0) {
++                setBundledTileIconFromResAsync(tile, setupDelegate, bundledIcon);
++            } else if (mImageFetcher != null) {
++                mImageFetcher.makeLargeIconRequest(
++                        tile.getUrl(),
++                        mMinIconSize,
++                        mDesiredIconSize,
++                        new LargeIconCallbackImpl(
++                                tile, setupDelegate.createIconLoadCallback(tile)));
++            }
+         }
+     }
+ 
+@@ -454,6 +491,23 @@ public class TileRenderer {
+         tile.setType(TileVisualType.ICON_REAL);
+     }
+ 
++    private void setTileIconFromResource(Tile tile, @DrawableRes int resourceId) {
++        tile.setIcon(ResourcesCompat.getDrawable(mContext.getResources(), resourceId, null));
++        tile.setIconTint(null);
++        tile.setType(TileVisualType.ICON_REAL);
++    }
++
++    private void setBundledTileIconFromResAsync(
++            Tile tile, TileGroup.TileSetupDelegate setupDelegate, @DrawableRes int resourceId) {
++        final Runnable iconCallback = setupDelegate.createIconLoadCallback(tile);
++        PostTask.postTask(
++                TaskTraits.UI_DEFAULT,
++                () -> {
++                    setTileIconFromResource(tile, resourceId);
++                    if (iconCallback != null) iconCallback.run();
++                });
++    }
++
+     public void setTileIconFromResAsync(
+             Tile tile, TileGroup.TileSetupDelegate setupDelegate, @DrawableRes int res) {
+         // We already have an icon, and could trigger the update instantly.
+diff --git a/chrome/android/javatests/src/org/chromium/chrome/browser/suggestions/tile/TileGroupUnitTest.java b/chrome/android/javatests/src/org/chromium/chrome/browser/suggestions/tile/TileGroupUnitTest.java
+index 27dd20f..0564fcd 100644
+--- a/chrome/android/javatests/src/org/chromium/chrome/browser/suggestions/tile/TileGroupUnitTest.java
++++ b/chrome/android/javatests/src/org/chromium/chrome/browser/suggestions/tile/TileGroupUnitTest.java
+@@ -674,6 +674,12 @@ public class TileGroupUnitTest {
+             mCallbackList.add(callback);
+         }
+ 
++        @Override
++        public void makeLargeIconRequest(
++                GURL url, int minSize, int desiredSize, LargeIconCallback callback) {
++            mCallbackList.add(callback);
++        }
++
+         public void fulfillLargeIconRequests(Bitmap bitmap, int color, boolean isColorDefault) {
+             for (LargeIconCallback callback : mCallbackList) {
+                 callback.onLargeIconAvailable(bitmap, color, isColorDefault, IconType.INVALID);
+diff --git a/chrome/android/junit/src/org/chromium/chrome/browser/suggestions/SuggestionsImageFetcherTest.java b/chrome/android/junit/src/org/chromium/chrome/browser/suggestions/SuggestionsImageFetcherTest.java
+index 45b5fb0..683986e 100644
+--- a/chrome/android/junit/src/org/chromium/chrome/browser/suggestions/SuggestionsImageFetcherTest.java
++++ b/chrome/android/junit/src/org/chromium/chrome/browser/suggestions/SuggestionsImageFetcherTest.java
+@@ -31,6 +31,7 @@ import org.chromium.url.JUnitTestGURLs;
+ @RunWith(BaseRobolectricTestRunner.class)
+ @Config(manifest = Config.NONE)
+ public class SuggestionsImageFetcherTest {
++    public static final int MIN_IMAGE_SIZE_PX = 24;
+     public static final int IMAGE_SIZE_PX = 100;
+     public static final GURL URL = JUnitTestGURLs.EXAMPLE_URL;
+ 
+@@ -56,4 +57,19 @@ public class SuggestionsImageFetcherTest {
+         verify(mLargeIconBridge)
+                 .getLargeIconForUrl(eq(URL), eq(IMAGE_SIZE_PX), any(LargeIconCallback.class));
+     }
++
++    @Test
++    public void testLargeIconFetchWithPreferredSize() {
++        ImageFetcher imageFetcher = new ImageFetcher(mock(Profile.class));
++
++        imageFetcher.makeLargeIconRequest(
++                URL, MIN_IMAGE_SIZE_PX, IMAGE_SIZE_PX, mock(LargeIconCallback.class));
++
++        verify(mLargeIconBridge)
++                .getLargeIconForUrl(
++                        eq(URL),
++                        eq(MIN_IMAGE_SIZE_PX),
++                        eq(IMAGE_SIZE_PX),
++                        any(LargeIconCallback.class));
++    }
+ }
+diff --git a/chrome/android/junit/src/org/chromium/chrome/browser/suggestions/tile/MostVisitedMediatorUnitTest.java b/chrome/android/junit/src/org/chromium/chrome/browser/suggestions/tile/MostVisitedMediatorUnitTest.java
+index b756166..a17bfe0 100644
+--- a/chrome/android/junit/src/org/chromium/chrome/browser/suggestions/tile/MostVisitedMediatorUnitTest.java
++++ b/chrome/android/junit/src/org/chromium/chrome/browser/suggestions/tile/MostVisitedMediatorUnitTest.java
+@@ -23,6 +23,7 @@ import android.content.Context;
+ import android.content.res.Configuration;
+ import android.content.res.Resources;
+ import android.view.ContextThemeWrapper;
++import android.view.View;
+ import android.view.ViewGroup;
+ import android.view.ViewGroup.LayoutParams;
+ import android.view.ViewGroup.MarginLayoutParams;
+@@ -74,6 +75,7 @@ public class MostVisitedMediatorUnitTest {
+     @Mock UiConfig mUiConfig;
+     @Mock ViewGroup mMvTilesContainerLayout;
+     @Mock MostVisitedTilesLayout mMvTilesLayout;
++    @Mock View mExpandButton;
+     @Mock Tile mTile;
+     @Mock SuggestionsTileView mTileView;
+     @Mock SiteSuggestion mData;
+@@ -390,8 +392,6 @@ public class MostVisitedMediatorUnitTest {
+                 new ViewGroup.MarginLayoutParams(
+                         ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+         when(mMvTilesContainerLayout.getLayoutParams()).thenReturn(marginLayoutParams);
+-        when(mMvTilesLayout.contentFitsOnLff(totalWidth)).thenReturn(true);
+-
+         // Test case of regular LFF devices.
+         UiConfig.DisplayStyle displayStyleWide =
+                 new DisplayStyle(HorizontalDisplayStyle.WIDE, VerticalDisplayStyle.REGULAR);
+@@ -400,10 +400,9 @@ public class MostVisitedMediatorUnitTest {
+ 
+         int lateralMargin = mResources.getDimensionPixelSize(R.dimen.mvt_container_lateral_margin);
+         mMediator.updateMvtWidth(totalWidth);
+-        verifyLayoutParams(marginLayoutParams, LayoutParams.WRAP_CONTENT, lateralMargin);
++        verifyLayoutParams(marginLayoutParams, totalWidth, lateralMargin);
+ 
+         // Test case of narrow window on LFF devices.
+-        when(mMvTilesLayout.contentFitsOnLff(totalWidth)).thenReturn(false);
+         UiConfig.DisplayStyle displayStyleRegular =
+                 new DisplayStyle(HorizontalDisplayStyle.REGULAR, VerticalDisplayStyle.REGULAR);
+         when(mUiConfig.getCurrentDisplayStyle()).thenReturn(displayStyleRegular);
+@@ -449,6 +448,8 @@ public class MostVisitedMediatorUnitTest {
+     private void createMediator(boolean isLff) {
+         mMvTilesLayout = Mockito.mock(MostVisitedTilesLayout.class);
+         when(mMvTilesContainerLayout.findViewById(R.id.mv_tiles_layout)).thenReturn(mMvTilesLayout);
++        when(mMvTilesContainerLayout.findViewById(R.id.mvt_expand_button))
++                .thenReturn(mExpandButton);
+ 
+         when(mMvTilesLayout.getResources()).thenReturn(mResources);
+         when(mMvTilesLayout.getChildCount()).thenReturn(1);
+diff --git a/chrome/android/junit/src/org/chromium/chrome/browser/suggestions/tile/TileRendererTest.java b/chrome/android/junit/src/org/chromium/chrome/browser/suggestions/tile/TileRendererTest.java
+index 30dae21..2bc5727 100644
+--- a/chrome/android/junit/src/org/chromium/chrome/browser/suggestions/tile/TileRendererTest.java
++++ b/chrome/android/junit/src/org/chromium/chrome/browser/suggestions/tile/TileRendererTest.java
+@@ -15,6 +15,7 @@ import android.app.Activity;
+ import android.content.res.ColorStateList;
+ import android.graphics.Bitmap;
+ import android.graphics.drawable.BitmapDrawable;
++import android.widget.ImageView;
+ 
+ import androidx.test.filters.SmallTest;
+ 
+@@ -42,6 +43,7 @@ import org.chromium.chrome.browser.search_engines.TemplateUrlServiceFactory;
+ import org.chromium.chrome.browser.suggestions.ImageFetcher;
+ import org.chromium.chrome.browser.suggestions.SiteSuggestion;
+ import org.chromium.chrome.browser.suggestions.SuggestionsConfig.TileStyle;
++import org.chromium.components.browser_ui.widget.RoundedCornerOutlineProvider;
+ import org.chromium.components.browser_ui.widget.RoundedIconGenerator;
+ import org.chromium.components.favicon.IconType;
+ import org.chromium.components.favicon.LargeIconBridge.LargeIconCallback;
+@@ -110,7 +112,11 @@ public class TileRendererTest {
+     }
+ 
+     private SuggestionsTileView buildTileView(@TileStyle int style, int titleLines) {
+-        SiteSuggestion siteSuggestion = new SiteSuggestion("Example", TEST_URL, 0, mTileSource, 0);
++        return buildTileView(style, titleLines, TEST_URL);
++    }
++
++    private SuggestionsTileView buildTileView(@TileStyle int style, int titleLines, GURL url) {
++        SiteSuggestion siteSuggestion = new SiteSuggestion("Example", url, 0, mTileSource, 0);
+         mTile = new Tile(siteSuggestion, 0);
+         mTile.setIconTint(mFakeColorStateList);
+ 
+@@ -152,7 +158,8 @@ public class TileRendererTest {
+         // Expect no callbacks: we don't have any icon to offer there.
+         RobolectricUtil.runAllBackgroundAndUi();
+         verify(mMockImageFetcher, times(1))
+-                .makeLargeIconRequest(any(), anyInt(), mImageFetcherCallbackCaptor.capture());
++                .makeLargeIconRequest(
++                        any(), anyInt(), anyInt(), mImageFetcherCallbackCaptor.capture());
+         verify(mTileSetupCallback, times(0)).run();
+         mImageFetcherCallbackCaptor
+                 .getValue()
+@@ -174,7 +181,8 @@ public class TileRendererTest {
+         // Expect no callbacks: we don't have any icon to offer there.
+         RobolectricUtil.runAllBackgroundAndUi();
+         verify(mMockImageFetcher, times(1))
+-                .makeLargeIconRequest(any(), anyInt(), mImageFetcherCallbackCaptor.capture());
++                .makeLargeIconRequest(
++                        any(), anyInt(), anyInt(), mImageFetcherCallbackCaptor.capture());
+         verify(mTileSetupCallback, times(0)).run();
+         mImageFetcherCallbackCaptor
+                 .getValue()
+@@ -188,6 +196,41 @@ public class TileRendererTest {
+         Assert.assertNull(mTile.getIconTint());
+     }
+ 
++    @Test
++    @SmallTest
++    public void testBuildTileView_UsesBundledIconForKnownSite() {
++        buildTileView(TileStyle.MODERN_CONDENSED, TITLE_LINES, new GURL("https://www.google.com/"));
++        RobolectricUtil.runAllBackgroundAndUi();
++        verify(mMockImageFetcher, times(0)).makeLargeIconRequest(any(), anyInt(), anyInt(), any());
++
++        ShadowDrawable shadowDrawable = shadowOf(mTile.getIcon());
++        Assert.assertEquals(R.drawable.ntp_shortcut_google, shadowDrawable.getCreatedFromResId());
++        Assert.assertEquals(TileVisualType.ICON_REAL, mTile.getType());
++        Assert.assertNull(mTile.getIconTint());
++    }
++
++    @Test
++    @SmallTest
++    public void testBuildTileView_UsesFullSizeRoundedSquareIconSlot() {
++        SuggestionsTileView tileView = buildTileView(TileStyle.MODERN, TITLE_LINES);
++        ImageView iconView = tileView.findViewById(R.id.tile_view_icon);
++        int expectedSize =
++                mActivity.getResources().getDimensionPixelSize(R.dimen.tile_view_icon_size);
++        int expectedRadius =
++                mActivity
++                        .getResources()
++                        .getDimensionPixelSize(R.dimen.ntp_shortcut_icon_corner_radius);
++
++        Assert.assertEquals(expectedSize, iconView.getLayoutParams().width);
++        Assert.assertEquals(expectedSize, iconView.getLayoutParams().height);
++        Assert.assertEquals(ImageView.ScaleType.FIT_CENTER, iconView.getScaleType());
++        Assert.assertTrue(iconView.getClipToOutline());
++        Assert.assertEquals(
++                expectedRadius,
++                ((RoundedCornerOutlineProvider) iconView.getOutlineProvider())
++                        .getRadiusForTesting());
++    }
++
+     @Test
+     @SmallTest
+     public void testBuildTestView_ModernSearch() {
+@@ -221,8 +264,7 @@ public class TileRendererTest {
+     public void testBuildTileView_CustomLinks_ContentDescription() {
+         mTileSource = TileSource.CUSTOM_LINKS;
+         SuggestionsTileView tileView = buildTileView(TileStyle.MODERN, TITLE_LINES);
+-        Assert.assertEquals(
+-                "Example: Pinned shortcut: www.example.com", tileView.getContentDescription());
++        Assert.assertEquals("Example: www.example.com", tileView.getContentDescription());
+     }
+ 
+     @Test
+diff --git a/chrome/browser/android/ntp/most_visited_sites_bridge.cc b/chrome/browser/android/ntp/most_visited_sites_bridge.cc
+index 22c74cb..0bc19e0 100644
+--- a/chrome/browser/android/ntp/most_visited_sites_bridge.cc
++++ b/chrome/browser/android/ntp/most_visited_sites_bridge.cc
+@@ -204,7 +204,11 @@ void MostVisitedSitesBridge::SetObserver(JNIEnv* env,
+                                          const JavaRef<jobject>& j_observer,
+                                          int32_t num_sites) {
+   java_observer_ = std::make_unique<JavaObserver>(env, j_observer);
+-  most_visited_->AddMostVisitedURLsObserver(java_observer_.get(), num_sites);
++  // Titanium's NTP is a user-managed shortcut grid. Keep TopSites enabled so
++  // the first custom-link action initializes an empty list, but never expose
++  // history-generated tiles to the observer.
++  most_visited_->AddMostVisitedURLsObserver(java_observer_.get(), num_sites,
++                                            /*max_num_non_custom_sites=*/0u);
+ }
+ 
+ bool MostVisitedSitesBridge::AddCustomLinkTo(JNIEnv* env,
+diff --git a/components/ntp_tiles/constants.cc b/components/ntp_tiles/constants.cc
+index 8aac9f1..ed6cd72 100644
+--- a/components/ntp_tiles/constants.cc
++++ b/components/ntp_tiles/constants.cc
+@@ -8,7 +8,9 @@
+ 
+ namespace ntp_tiles {
+ 
+-#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
++#if BUILDFLAG(IS_ANDROID)
++const size_t kMaxNumCustomLinks = 20;
++#elif BUILDFLAG(IS_IOS)
+ const size_t kMaxNumCustomLinks = 8;
+ #else
+ const size_t kMaxNumCustomLinks = 10;

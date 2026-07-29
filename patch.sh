@@ -6,6 +6,7 @@ for icon in $(find chrome/android/java/res_titanium_base -type f -name '*.png');
 git apply --whitespace=nowarn "$SCRIPT_DIR/patches/Improve-Android-login-field-detection.patch"
 git apply --whitespace=nowarn "$SCRIPT_DIR/patches/Hide-settings-search-during-navigation.patch"
 git apply --whitespace=nowarn "$SCRIPT_DIR/patches/Keep-homepage-search-keyboard-visible.patch"
+git apply --whitespace=nowarn "$SCRIPT_DIR/patches/Customize-homepage-shortcuts-grid.patch"
 sed -i 's|<application |<application android:extractNativeLibs="false" |' chrome/android/java/AndroidManifest.xml
 # sed -i 's|Google LLC|jqssun, Google LLC|' chrome/browser/ui/android/strings/android_chrome_strings.grd
 

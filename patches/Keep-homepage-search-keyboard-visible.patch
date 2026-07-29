@@ -1,0 +1,76 @@
+diff --git a/chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/UrlBarCoordinator.java b/chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/UrlBarCoordinator.java
+--- a/chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/UrlBarCoordinator.java
++++ b/chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/UrlBarCoordinator.java
+@@ -348,11 +348,7 @@ public class UrlBarCoordinator
+      *     improve the animation smoothness.
+      */
+     public void setKeyboardVisibility(boolean showKeyboard, boolean shouldDelayHiding) {
+-        // Cancel pending jobs to prevent any possibility of keyboard flicker.
+-        if (mKeyboardHideTask != null) {
+-            mUrlBar.removeCallbacks(mKeyboardHideTask);
+-        }
+-        mKeyboardHideTask = null;
++        cancelPendingKeyboardHide();
+ 
+         // Note: due to nature of this mechanism, we may occasionally experience subsequent requests
+         // to show or hide keyboard anyway. This may happen when we schedule keyboard hide, and
+@@ -373,6 +369,13 @@ public class UrlBarCoordinator
+         }
+     }
+ 
++    private void cancelPendingKeyboardHide() {
++        if (mKeyboardHideTask != null) {
++            mUrlBar.removeCallbacks(mKeyboardHideTask);
++        }
++        mKeyboardHideTask = null;
++    }
++
+     /**
+      * @param hasSuggestions Whether suggestions are showing in the URL bar.
+      */
+@@ -388,6 +391,7 @@ public class UrlBarCoordinator
+                         mUrlBar.getContext().getSystemService(Context.INPUT_METHOD_SERVICE);
+         mHasFocus = hasFocus;
+         if (hasFocus) {
++            cancelPendingKeyboardHide();
+             // Explicitly tell InputMethodManager that the url bar is focused before any callbacks
+             // so that it updates the active view accordingly. Otherwise, it may fail to update
+             // the correct active view if ViewGroup.addView() or ViewGroup.removeView() is called
+diff --git a/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ToolbarPhone.java b/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ToolbarPhone.java
+--- a/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ToolbarPhone.java
++++ b/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ToolbarPhone.java
+@@ -2525,8 +2525,7 @@ public class ToolbarPhone extends ToolbarLayout
+                     @Override
+                     public void onCancel(Animator animation) {
+                         if (!hasFocus) mDisableLocationBarRelayout = false;
+-
+-                        mUrlFocusChangeInProgress = false;
++                        finishCanceledUrlFocusChange(hasFocus);
+                     }
+ 
+                     @Override
+@@ -2741,7 +2740,7 @@ public class ToolbarPhone extends ToolbarLayout
+                     @Override
+                     public void onTransitionCancel(Transition transition) {
+                         super.onTransitionCancel(transition);
+-                        mUrlFocusChangeInProgress = false;
++                        finishCanceledUrlFocusChange(hasFocus);
+                     }
+ 
+                     @Override
+@@ -2834,6 +2833,15 @@ public class ToolbarPhone extends ToolbarLayout
+         mUrlFocusChangeInProgress = true;
+     }
+ 
++    private void finishCanceledUrlFocusChange(boolean hasFocus) {
++        // Animation cancel skips the normal onEnd callback. If the URL focus state still matches
++        // this transition, run the completion side effects so keyboard visibility stays in sync.
++        if (urlHasFocus() == hasFocus) {
++            mLocationBar.finishUrlFocusChange(hasFocus, hasFocus);
++        }
++        mUrlFocusChangeInProgress = false;
++    }
++
+     private void updateLocationBarNtpOffset(boolean expanded) {
+         if (!isLocationBarShownInNtp()) return;
+ 

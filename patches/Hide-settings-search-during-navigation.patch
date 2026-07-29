@@ -1,0 +1,193 @@
+diff --git a/chrome/android/java/res/values/ids.xml b/chrome/android/java/res/values/ids.xml
+--- a/chrome/android/java/res/values/ids.xml
++++ b/chrome/android/java/res/values/ids.xml
+@@ -126,6 +126,10 @@ found in the LICENSE file.
+     <item type="id" name="ntp_view_layout_change_listener_tag" />
+     <item type="id" name="ntp_search_box_text_watcher_tag" />
+ 
++    <!-- Settings -->
++    <item type="id" name="preferences_header_pane" />
++    <item type="id" name="settings_root_search_box_container" />
++
+     <!-- NTP-->
+     <item type="id" name="ntp_feed_header_menu_item_manage" />
+     <item type="id" name="ntp_feed_header_menu_item_activity" />
+diff --git a/chrome/android/java/src/org/chromium/chrome/browser/settings/MultiColumnSettings.java b/chrome/android/java/src/org/chromium/chrome/browser/settings/MultiColumnSettings.java
+--- a/chrome/android/java/src/org/chromium/chrome/browser/settings/MultiColumnSettings.java
++++ b/chrome/android/java/src/org/chromium/chrome/browser/settings/MultiColumnSettings.java
+@@ -13,6 +13,8 @@ import android.view.LayoutInflater;
+ import android.view.View;
+ import android.view.ViewGroup;
+ import android.view.ViewGroup.LayoutParams;
++import android.widget.FrameLayout;
++import android.widget.LinearLayout;
+ 
+ import androidx.activity.OnBackPressedCallback;
+ import androidx.annotation.IntDef;
+@@ -20,6 +22,7 @@ import androidx.core.view.WindowInsetsCompat;
+ import androidx.core.view.WindowInsetsControllerCompat;
+ import androidx.fragment.app.DialogFragment;
+ import androidx.fragment.app.Fragment;
++import androidx.fragment.app.FragmentContainerView;
+ import androidx.fragment.app.FragmentManager;
+ import androidx.preference.Preference;
+ import androidx.preference.PreferenceFragmentCompat;
+@@ -327,10 +330,12 @@ public class MultiColumnSettings extends PreferenceHeaderFragmentCompat
+             @Nullable ViewGroup container,
+             @Nullable Bundle savedInstanceState) {
+         View view = super.onCreateView(inflater, container, savedInstanceState);
+-        addTitleContainer(inflater, (SlidingPaneLayout) view);
++        SlidingPaneLayout slidingPaneLayout = (SlidingPaneLayout) view;
++        addHeaderSearchContainer(slidingPaneLayout);
++        addTitleContainer(inflater, slidingPaneLayout);
+ 
+         var resources = view.getResources();
+-        View headerView = view.findViewById(R.id.preferences_header);
++        View headerView = view.findViewById(R.id.preferences_header_pane);
+         LayoutParams headerParams = headerView.getLayoutParams();
+         headerParams.width = resources.getDimensionPixelSize(R.dimen.settings_narrow_header_width);
+         headerView.setLayoutParams(headerParams);
+@@ -402,6 +407,33 @@ public class MultiColumnSettings extends PreferenceHeaderFragmentCompat
+         slidingPaneLayout.addView(newDetailedView, detailLayoutParams);
+     }
+ 
++    // Replaces the header pane with a wrapper that keeps root-only UI out of the detail pane.
++    private void addHeaderSearchContainer(SlidingPaneLayout slidingPaneLayout) {
++        View oldHeaderView = slidingPaneLayout.findViewById(R.id.preferences_header);
++        int headerIndex = slidingPaneLayout.indexOfChild(oldHeaderView);
++        LayoutParams headerLayoutParams = oldHeaderView.getLayoutParams();
++        slidingPaneLayout.removeView(oldHeaderView);
++
++        LinearLayout newHeaderView = new LinearLayout(oldHeaderView.getContext());
++        newHeaderView.setId(R.id.preferences_header_pane);
++        newHeaderView.setOrientation(LinearLayout.VERTICAL);
++
++        FrameLayout searchBoxContainer = new FrameLayout(oldHeaderView.getContext());
++        searchBoxContainer.setId(R.id.settings_root_search_box_container);
++        newHeaderView.addView(
++                searchBoxContainer,
++                new LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT));
++
++        FragmentContainerView headerFragmentContainer =
++                new FragmentContainerView(oldHeaderView.getContext());
++        headerFragmentContainer.setId(R.id.preferences_header);
++        newHeaderView.addView(
++                headerFragmentContainer,
++                new LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, 0, 1f));
++
++        slidingPaneLayout.addView(newHeaderView, headerIndex, headerLayoutParams);
++    }
++
+     /** Returns whether the current layout is in two-column mode. */
+     boolean isTwoColumn() {
+         return !getSlidingPaneLayout().isSlideable();
+diff --git a/chrome/android/java/src/org/chromium/chrome/browser/settings/search/SettingsSearchCoordinator.java b/chrome/android/java/src/org/chromium/chrome/browser/settings/search/SettingsSearchCoordinator.java
+--- a/chrome/android/java/src/org/chromium/chrome/browser/settings/search/SettingsSearchCoordinator.java
++++ b/chrome/android/java/src/org/chromium/chrome/browser/settings/search/SettingsSearchCoordinator.java
+@@ -262,7 +262,7 @@ public class SettingsSearchCoordinator
+         //         +--- searchBox (single-column)
+         Toolbar actionBar = mActivity.findViewById(R.id.action_bar);
+         ViewGroup appBar = mActivity.findViewById(R.id.app_bar_layout);
+-        ViewGroup searchBoxParent = mUseMultiColumn ? actionBar : appBar;
++        ViewGroup searchBoxParent = getSearchBoxParent(actionBar, appBar);
+         LayoutInflater.from(mActivity).inflate(R.layout.settings_search_box, searchBoxParent, true);
+         LayoutInflater.from(mActivity).inflate(R.layout.settings_search_query, actionBar, true);
+         View searchBox = mActivity.findViewById(R.id.search_box);
+@@ -327,6 +327,15 @@ public class SettingsSearchCoordinator
+         mHandler.post(this::restoreRecentSearches);
+     }
+ 
++    private ViewGroup getSearchBoxParent(Toolbar actionBar, ViewGroup appBar) {
++        if (mUseMultiColumn) return actionBar;
++        if (mMultiColumnSettings == null) return appBar;
++
++        ViewGroup rootSearchBoxContainer =
++                mActivity.findViewById(R.id.settings_root_search_box_container);
++        return assumeNonNull(rootSearchBoxContainer);
++    }
++
+     private void showTitleTextView(boolean show) {
+         Toolbar actionBar = mActivity.findViewById(R.id.action_bar);
+         assumeNonNull(ToolbarUtils.getTitleTextView(actionBar))
+@@ -442,15 +451,15 @@ public class SettingsSearchCoordinator
+ 
+         updateSearchUiWidth();
+ 
+-        // Determine the search bar visibility.
++        // The search box is part of the root settings pane in single-column layout, and part of
++        // the toolbar in two-column layout.
+         View searchBox = mActivity.findViewById(R.id.search_box);
+         mHandler.post(
+                 () -> {
+                     if (mFragmentState != FS_SETTINGS) return;
+-                    searchBox.setVisibility(isShowingMainSettings() ? View.VISIBLE : View.GONE);
++                    searchBox.setVisibility(View.VISIBLE);
+                 });
+ 
+-        // Controls search UI visibility in single-column mode.
+         mMultiColumnSettings
+                 .getSlidingPaneLayout()
+                 .addPanelSlideListener(
+@@ -461,7 +470,6 @@ public class SettingsSearchCoordinator
+ 
+                                 var mainSettings = mMultiColumnSettings.getMainSettings();
+                                 if (mainSettings != null) mainSettings.saveListState();
+-                                showUiInSingleColumn(searchBox, /* show= */ false);
+                                 disableBackgroundTalkbackNavigation();
+                             }
+ 
+@@ -482,7 +490,6 @@ public class SettingsSearchCoordinator
+                                 if (mFragmentState == FS_SEARCH) {
+                                     exitSearchState(/* clearFragment= */ false);
+                                 }
+-                                showUiInSingleColumn(searchBox, /* show= */ true);
+                                 disableBackgroundTalkbackNavigation();
+                             }
+                         });
+@@ -816,11 +823,11 @@ public class SettingsSearchCoordinator
+         View queryContainer = mActivity.findViewById(R.id.search_query_container);
+         queryContainer.setVisibility(View.GONE);
+ 
+-        // In single-column mode, search box visibility is handled by
+-        // SlidingPaneLayout#SimplePanelSlideListener set up in initializeMultiColumnSearchUi
+-        // for mutli-column settings, and by FragmentManager.FragmentLifecycleCallbacks set up
+-        // in observeFragmentForVisibilityChange for single-column settings.
+-        if (mUseMultiColumn) searchBox.setVisibility(View.VISIBLE);
++        // In non-MultiColumn single-column settings, search box visibility is handled by
++        // FragmentManager.FragmentLifecycleCallbacks set up in observeFragmentForVisibilityChange.
++        if (mUseMultiColumn || mMultiColumnSettings != null) {
++            searchBox.setVisibility(View.VISIBLE);
++        }
+ 
+         showBackArrowInSingleColumnMode(true);
+         EditText queryEdit = mActivity.findViewById(R.id.search_query);
+@@ -1225,21 +1232,19 @@ public class SettingsSearchCoordinator
+             }
+             adjustTalkbackTraversalOrder(isVisible(query) ? query : searchBox);
+         } else {
+-            // Search bar goes beneath the toolbar (app_bar_layout) in single-column layout.
+-            ViewGroup appBarLayout = mActivity.findViewById(R.id.app_bar_layout);
++            // Search bar belongs to the root settings pane in single-column layout.
++            ViewGroup searchBoxContainer =
++                    mActivity.findViewById(R.id.settings_root_search_box_container);
+             setSearchBoxVerticalMargin(searchBox, false);
+-            appBarLayout.addView(searchBox);
++            assumeNonNull(searchBoxContainer).addView(searchBox);
+             boolean showingMain = isShowingMainSettings();
+-            if (showingMain) {
++            if (mFragmentState == FS_SETTINGS) {
+                 // No need to check against |mSuppressUi| here since in single-column mode
+-                // search UI is always hidden except at main settings in which the UI is
+-                // never suppressed.
+-                if (mFragmentState == FS_SETTINGS) {
+-                    searchBox.setVisibility(View.VISIBLE);
+-                }
++                // root settings search UI is never suppressed.
++                searchBox.setVisibility(View.VISIBLE);
++                query.setVisibility(View.GONE);
+             } else {
+                 searchBox.setVisibility(View.GONE);
+-                query.setVisibility(View.GONE);
+             }
+             // Query edit UI should be hidden while we're browsing results.
+             if (mFragmentState == FS_RESULTS) query.setVisibility(View.GONE);

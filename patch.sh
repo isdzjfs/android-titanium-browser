@@ -5,6 +5,7 @@ cp $SCRIPT_DIR/res/drawable/themed_app_icon.xml chrome/android/java/res_titanium
 for icon in $(find chrome/android/java/res_titanium_base -type f -name '*.png'); do convert $icon -fill navy -tint 36 $icon && $SCRIPT_DIR/res/icon.sh $icon; done
 git apply --whitespace=nowarn "$SCRIPT_DIR/patches/Improve-Android-login-field-detection.patch"
 git apply --whitespace=nowarn "$SCRIPT_DIR/patches/Hide-settings-search-during-navigation.patch"
+git apply --whitespace=nowarn "$SCRIPT_DIR/patches/Fix-HTML-fullscreen-cutout-and-notification.patch"
 git apply --whitespace=nowarn "$SCRIPT_DIR/patches/Keep-homepage-search-keyboard-visible.patch"
 git apply --whitespace=nowarn "$SCRIPT_DIR/patches/Customize-homepage-shortcuts-grid.patch"
 sed -i 's|<application |<application android:extractNativeLibs="false" |' chrome/android/java/AndroidManifest.xml

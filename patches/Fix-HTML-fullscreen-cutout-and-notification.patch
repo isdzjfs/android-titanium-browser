@@ -1,0 +1,186 @@
+diff --git a/chrome/android/junit/src/org/chromium/chrome/browser/display_cutout/DisplayCutoutControllerTest.java b/chrome/android/junit/src/org/chromium/chrome/browser/display_cutout/DisplayCutoutControllerTest.java
+--- a/chrome/android/junit/src/org/chromium/chrome/browser/display_cutout/DisplayCutoutControllerTest.java
++++ b/chrome/android/junit/src/org/chromium/chrome/browser/display_cutout/DisplayCutoutControllerTest.java
+@@ -134,9 +134,21 @@ public class DisplayCutoutControllerTest {
+ 
+     @Test
+     @SmallTest
+-    public void testCutoutModeWhenAutoAndInteractable() {
++    public void testCutoutModeWhenAutoAndInteractableFullscreen() {
+         when(mTab.isUserInteractable()).thenReturn(true);
+ 
++        mDisplayCutoutTabHelper.setViewportFit(ViewportFit.AUTO);
++        Assert.assertEquals(
++                LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES,
++                mController.computeDisplayCutoutMode());
++    }
++
++    @Test
++    @SmallTest
++    public void testCutoutModeWhenAutoAndInteractableOutsideFullscreen() {
++        when(mTab.isUserInteractable()).thenReturn(true);
++        when(mWebContents.isFullscreenForCurrentTab()).thenReturn(false);
++
+         mDisplayCutoutTabHelper.setViewportFit(ViewportFit.AUTO);
+         Assert.assertEquals(
+                 LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_DEFAULT,
+diff --git a/chrome/browser/ui/android/exclusive_access/exclusive_access_bubble_android.cc b/chrome/browser/ui/android/exclusive_access/exclusive_access_bubble_android.cc
+--- a/chrome/browser/ui/android/exclusive_access/exclusive_access_bubble_android.cc
++++ b/chrome/browser/ui/android/exclusive_access/exclusive_access_bubble_android.cc
+@@ -107,6 +107,14 @@ void ExclusiveAccessBubbleAndroid::Hide() {
+ }
+ 
+ void ExclusiveAccessBubbleAndroid::Show() {
++  // Titanium does not show the repetitive exit instructions for plain HTML
++  // fullscreen. Keep notices that carry additional security or download state.
++  const bool is_plain_html_fullscreen =
++      params_.type == EXCLUSIVE_ACCESS_BUBBLE_TYPE_FULLSCREEN_EXIT_INSTRUCTION &&
++      !params_.has_download;
++  if (is_plain_html_fullscreen) {
++    return;
++  }
+   was_shown_ = true;
+   bridge_->Show();
+ }
+@@ -161,6 +169,22 @@ void ExclusiveAccessBubbleAndroid::Update(
+   if (!params.has_download) {
+     params_.type = params.type;
+   }
++
++  // Java's Update() creates and shows the snackbar when one does not already
++  // exist, so suppressing Show() alone is too late for plain HTML fullscreen.
++  // Keep pointer/keyboard lock and download notices because they communicate
++  // additional security-relevant state.
++  const bool is_plain_html_fullscreen =
++      params_.type == EXCLUSIVE_ACCESS_BUBBLE_TYPE_FULLSCREEN_EXIT_INSTRUCTION &&
++      !params_.has_download;
++  if (is_plain_html_fullscreen) {
++    RunHideCallbackIfNeeded(ExclusiveAccessBubbleHideReason::kNotShown);
++    if (already_shown) {
++      bridge_->Hide();
++    }
++    return;
++  }
++
+   UpdateBubbleContent(params_.type);
+   ShowAndStartTimers();
+ }
+diff --git a/chrome/browser/ui/android/exclusive_access/exclusive_access_bubble_android_unittest.cc b/chrome/browser/ui/android/exclusive_access/exclusive_access_bubble_android_unittest.cc
+--- a/chrome/browser/ui/android/exclusive_access/exclusive_access_bubble_android_unittest.cc
++++ b/chrome/browser/ui/android/exclusive_access/exclusive_access_bubble_android_unittest.cc
+@@ -31,13 +31,82 @@ class MockBridge : public ExclusiveAccessBubbleAndroid::Bridge {
+ 
+ using ExclusiveAccessBubbleAndroidTest = ChromeRenderViewHostTestHarness;
+ 
+-TEST_F(ExclusiveAccessBubbleAndroidTest, UpdateEarlyOutsWhenAlreadyShown) {
++TEST_F(ExclusiveAccessBubbleAndroidTest,
++       SuppressesPlainFullscreenExitInstruction) {
+   ExclusiveAccessBubbleParams params;
+   params.type = EXCLUSIVE_ACCESS_BUBBLE_TYPE_FULLSCREEN_EXIT_INSTRUCTION;
+ 
+   auto mock_bridge = std::make_unique<MockBridge>();
+   auto* mock_bridge_ptr = mock_bridge.get();
+ 
++  EXPECT_CALL(*mock_bridge_ptr, IsVisible()).WillOnce(Return(false));
++  EXPECT_CALL(*mock_bridge_ptr, IsKeyboardConnected()).Times(0);
++  EXPECT_CALL(*mock_bridge_ptr, Update(_)).Times(0);
++  EXPECT_CALL(*mock_bridge_ptr, Show()).Times(0);
++
++  ExclusiveAccessBubbleAndroid bubble(params, base::DoNothing(),
++                                      std::move(mock_bridge));
++
++  EXPECT_CALL(*mock_bridge_ptr, Hide()).Times(1);
++}
++
++TEST_F(ExclusiveAccessBubbleAndroidTest,
++       HidesExistingNoticeWhenEnteringPlainFullscreen) {
++  ExclusiveAccessBubbleParams params;
++  params.type = EXCLUSIVE_ACCESS_BUBBLE_TYPE_POINTERLOCK_EXIT_INSTRUCTION;
++
++  auto mock_bridge = std::make_unique<MockBridge>();
++  auto* mock_bridge_ptr = mock_bridge.get();
++
++  EXPECT_CALL(*mock_bridge_ptr, IsVisible()).WillOnce(Return(false));
++  EXPECT_CALL(*mock_bridge_ptr, IsKeyboardConnected()).WillOnce(Return(false));
++  EXPECT_CALL(*mock_bridge_ptr, Update(_)).Times(1);
++  EXPECT_CALL(*mock_bridge_ptr, Show()).Times(1);
++
++  ExclusiveAccessBubbleAndroid bubble(params, base::DoNothing(),
++                                      std::move(mock_bridge));
++
++  testing::Mock::VerifyAndClearExpectations(mock_bridge_ptr);
++
++  params.type = EXCLUSIVE_ACCESS_BUBBLE_TYPE_FULLSCREEN_EXIT_INSTRUCTION;
++  EXPECT_CALL(*mock_bridge_ptr, IsVisible()).WillOnce(Return(true));
++  EXPECT_CALL(*mock_bridge_ptr, IsKeyboardConnected()).Times(0);
++  EXPECT_CALL(*mock_bridge_ptr, Update(_)).Times(0);
++  EXPECT_CALL(*mock_bridge_ptr, Show()).Times(0);
++  EXPECT_CALL(*mock_bridge_ptr, Hide()).Times(1);
++  bubble.Update(params, base::DoNothing());
++
++  testing::Mock::VerifyAndClearExpectations(mock_bridge_ptr);
++  EXPECT_CALL(*mock_bridge_ptr, Hide()).Times(1);
++}
++
++TEST_F(ExclusiveAccessBubbleAndroidTest,
++       KeepsFullscreenNotificationForDownload) {
++  ExclusiveAccessBubbleParams params;
++  params.type = EXCLUSIVE_ACCESS_BUBBLE_TYPE_FULLSCREEN_EXIT_INSTRUCTION;
++  params.has_download = true;
++
++  auto mock_bridge = std::make_unique<MockBridge>();
++  auto* mock_bridge_ptr = mock_bridge.get();
++
++  EXPECT_CALL(*mock_bridge_ptr, IsVisible()).WillOnce(Return(false));
++  EXPECT_CALL(*mock_bridge_ptr, IsKeyboardConnected()).WillOnce(Return(false));
++  EXPECT_CALL(*mock_bridge_ptr, Update(_)).Times(1);
++  EXPECT_CALL(*mock_bridge_ptr, Show()).Times(1);
++
++  ExclusiveAccessBubbleAndroid bubble(params, base::DoNothing(),
++                                      std::move(mock_bridge));
++
++  EXPECT_CALL(*mock_bridge_ptr, Hide()).Times(1);
++}
++
++TEST_F(ExclusiveAccessBubbleAndroidTest, UpdateEarlyOutsWhenAlreadyShown) {
++  ExclusiveAccessBubbleParams params;
++  params.type = EXCLUSIVE_ACCESS_BUBBLE_TYPE_POINTERLOCK_EXIT_INSTRUCTION;
++
++  auto mock_bridge = std::make_unique<MockBridge>();
++  auto* mock_bridge_ptr = mock_bridge.get();
++
+   EXPECT_CALL(*mock_bridge_ptr, IsVisible()).WillOnce(Return(false));
+   EXPECT_CALL(*mock_bridge_ptr, IsKeyboardConnected()).WillOnce(Return(false));
+   EXPECT_CALL(*mock_bridge_ptr, Update(_)).Times(1);
+@@ -61,7 +130,7 @@ TEST_F(ExclusiveAccessBubbleAndroidTest, UpdateEarlyOutsWhenAlreadyShown) {
+ 
+ TEST_F(ExclusiveAccessBubbleAndroidTest, WasShownFlagPreventsResurrection) {
+   ExclusiveAccessBubbleParams params;
+-  params.type = EXCLUSIVE_ACCESS_BUBBLE_TYPE_FULLSCREEN_EXIT_INSTRUCTION;
++  params.type = EXCLUSIVE_ACCESS_BUBBLE_TYPE_POINTERLOCK_EXIT_INSTRUCTION;
+ 
+   auto mock_bridge = std::make_unique<MockBridge>();
+   auto* mock_bridge_ptr = mock_bridge.get();
+@@ -113,7 +182,7 @@ TEST_F(ExclusiveAccessBubbleAndroidTest, WasShownFlagPreventsResurrection) {
+ 
+ TEST_F(ExclusiveAccessBubbleAndroidTest, SnoozeResetForciblyReshowsNotice) {
+   ExclusiveAccessBubbleParams params;
+-  params.type = EXCLUSIVE_ACCESS_BUBBLE_TYPE_FULLSCREEN_EXIT_INSTRUCTION;
++  params.type = EXCLUSIVE_ACCESS_BUBBLE_TYPE_POINTERLOCK_EXIT_INSTRUCTION;
+ 
+   auto mock_bridge = std::make_unique<MockBridge>();
+   auto* mock_bridge_ptr = mock_bridge.get();
+diff --git a/components/browser_ui/display_cutout/android/java/src/org/chromium/components/browser_ui/display_cutout/DisplayCutoutController.java b/components/browser_ui/display_cutout/android/java/src/org/chromium/components/browser_ui/display_cutout/DisplayCutoutController.java
+--- a/components/browser_ui/display_cutout/android/java/src/org/chromium/components/browser_ui/display_cutout/DisplayCutoutController.java
++++ b/components/browser_ui/display_cutout/android/java/src/org/chromium/components/browser_ui/display_cutout/DisplayCutoutController.java
+@@ -409,6 +409,10 @@ public class DisplayCutoutController implements InsetObserver.WindowInsetObserve
+ 
+         return switch (mViewportFit) {
+             case ViewportFit.CONTAIN -> LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_NEVER;
++            // In HTML fullscreen, keeping the default cutout mode can make Android offset the
++            // entire renderer from the cutout while Blink still uses full-screen coordinates.
++            // Drawing into the short edges keeps rendering and input coordinates aligned.
++            case ViewportFit.AUTO -> LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
+             case ViewportFit.COVER_FORCED_BY_USER_AGENT, ViewportFit.COVER -> LayoutParams
+                     .LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
+             default -> LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_DEFAULT;

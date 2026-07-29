@@ -8,6 +8,7 @@ git apply --whitespace=nowarn "$SCRIPT_DIR/patches/Hide-settings-search-during-n
 git apply --whitespace=nowarn "$SCRIPT_DIR/patches/Fix-HTML-fullscreen-cutout-and-notification.patch"
 git apply --whitespace=nowarn "$SCRIPT_DIR/patches/Keep-homepage-search-keyboard-visible.patch"
 git apply --whitespace=nowarn "$SCRIPT_DIR/patches/Customize-homepage-shortcuts-grid.patch"
+git apply --whitespace=nowarn "$SCRIPT_DIR/patches/Match-status-bar-to-page-background.patch"
 sed -i 's|<application |<application android:extractNativeLibs="false" |' chrome/android/java/AndroidManifest.xml
 # sed -i 's|Google LLC|jqssun, Google LLC|' chrome/browser/ui/android/strings/android_chrome_strings.grd
 

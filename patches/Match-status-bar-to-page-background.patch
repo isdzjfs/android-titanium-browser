@@ -1,5 +1,5 @@
 diff --git a/chrome/android/java/src/org/chromium/chrome/browser/ui/system/StatusBarColorController.java b/chrome/android/java/src/org/chromium/chrome/browser/ui/system/StatusBarColorController.java
-index 5ed064ffb6..ccf460c32a 100644
+index 5ed064ffb6..6874a627f8 100644
 --- a/chrome/android/java/src/org/chromium/chrome/browser/ui/system/StatusBarColorController.java
 +++ b/chrome/android/java/src/org/chromium/chrome/browser/ui/system/StatusBarColorController.java
 @@ -9,13 +9,20 @@ import android.app.ActivityManager;
@@ -70,7 +70,7 @@ index 5ed064ffb6..ccf460c32a 100644
      private final @ColorInt int mStandardDefaultThemeColor;
      private final @ColorInt int mIncognitoDefaultThemeColor;
      private final @ColorInt int mActiveOmniboxDefaultColor;
-@@ -135,6 +151,15 @@ public class StatusBarColorController
+@@ -135,6 +151,16 @@ public class StatusBarColorController
      private boolean mIsIncognitoBranded;
      private boolean mIsOmniboxFocused;
      private boolean mAreSuggestionsScrolled;
@@ -83,10 +83,11 @@ index 5ed064ffb6..ccf460c32a 100644
 +    private final Map<Tab, Integer> mPageTopColors = new WeakHashMap<>();
 +    private boolean mPageTopColorNeedsRefresh;
 +    private @ColorInt int mPageTopColor = UNDEFINED_STATUS_BAR_COLOR;
++    private @Nullable Callback<Integer> mBottomToolbarColorObserver;
  
      private @ColorInt int mScrimColor = Color.TRANSPARENT;
  
-@@ -198,6 +223,7 @@ public class StatusBarColorController
+@@ -198,6 +224,7 @@ public class StatusBarColorController
          mAllowToolbarColorOnTablets = false;
          mOverviewColorSupplier = overviewColorSupplier;
          mBrowserControlsStateProvider = browserControlsStateProvider;
@@ -94,7 +95,7 @@ index 5ed064ffb6..ccf460c32a 100644
  
          mStandardDefaultThemeColor =
                  ChromeColors.getDefaultThemeColor(activity, /* isIncognito= */ false);
-@@ -224,26 +250,75 @@ public class StatusBarColorController
+@@ -224,26 +251,75 @@ public class StatusBarColorController
                      @Override
                      public void onShown(Tab tab, @TabSelectionType int type) {
                          updateStatusBarColor();
@@ -173,7 +174,7 @@ index 5ed064ffb6..ccf460c32a 100644
                      }
  
                      @Override
-@@ -251,7 +326,11 @@ public class StatusBarColorController
+@@ -251,7 +327,11 @@ public class StatusBarColorController
                              Tab tab, @Nullable WindowAndroid window) {
                          // Stop referring to the Tab once detached from an activity. Will be
                          // restored by |onObservingDifferentTab|.
@@ -186,7 +187,7 @@ index 5ed064ffb6..ccf460c32a 100644
                      }
  
                      @Override
-@@ -262,18 +341,30 @@ public class StatusBarColorController
+@@ -262,18 +342,30 @@ public class StatusBarColorController
                          // called.
                          mCurrentTab = null;
                          mShouldUpdateStatusBarColorForNtp = false;
@@ -218,7 +219,7 @@ index 5ed064ffb6..ccf460c32a 100644
                      }
                  };
  
-@@ -306,6 +397,7 @@ public class StatusBarColorController
+@@ -306,6 +398,7 @@ public class StatusBarColorController
              mIsTopResumedActivity = !mDesktopWindowStateManager.isInUnfocusedDesktopWindow();
          }
          mOverviewColorSupplier.addSyncObserverAndPostIfNonNull(mOverviewColorObserver);
@@ -226,7 +227,7 @@ index 5ed064ffb6..ccf460c32a 100644
      }
  
      /**
-@@ -373,6 +465,10 @@ public class StatusBarColorController
+@@ -373,6 +466,11 @@ public class StatusBarColorController
      @SuppressWarnings("NullAway")
      public void onDestroy() {
          mStatusBarColorTabObserver.destroy();
@@ -234,10 +235,11 @@ index 5ed064ffb6..ccf460c32a 100644
 +        cancelPageTopColorSampling();
 +        mPageTopColors.clear();
 +        mPageTopColorNeedsRefresh = false;
++        mBottomToolbarColorObserver = null;
          if (mLayoutStateProvider != null) {
              mLayoutStateProvider.removeObserver(mLayoutStateObserver);
          }
-@@ -410,6 +506,7 @@ public class StatusBarColorController
+@@ -410,6 +508,7 @@ public class StatusBarColorController
          mToolbarColorChanged = true;
          mToolbarColor = color;
          updateStatusBarColor();
@@ -245,7 +247,7 @@ index 5ed064ffb6..ccf460c32a 100644
      }
  
      @Override
-@@ -433,6 +530,28 @@ public class StatusBarColorController
+@@ -433,6 +532,28 @@ public class StatusBarColorController
      public void onUrlFocusChange(boolean hasFocus) {
          mIsOmniboxFocused = hasFocus;
          updateStatusBarColor();
@@ -274,7 +276,15 @@ index 5ed064ffb6..ccf460c32a 100644
      }
  
      @Override
-@@ -595,6 +714,19 @@ public class StatusBarColorController
+@@ -505,6 +626,7 @@ public class StatusBarColorController
+                 mActivity,
+                 statusBarColor,
+                 mForceLightIconColorForNtp && isStandardNtp() && !mIsOmniboxFocused);
++        notifyBottomToolbarColorObserver();
+ 
+         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+             @ColorInt
+@@ -595,6 +717,19 @@ public class StatusBarColorController
              return mBackgroundColorForNtp;
          }
  
@@ -294,7 +304,7 @@ index 5ed064ffb6..ccf460c32a 100644
          // Return status bar color to match the toolbar.
          // If the flag is enabled, we will use the toolbar color.
          if (mToolbarColorChanged && !isBottomBarEnabledAndBottomControls()) return mToolbarColor;
-@@ -734,8 +866,166 @@ public class StatusBarColorController
+@@ -734,8 +869,197 @@ public class StatusBarColorController
      }
  
      private boolean isBottomBarEnabledAndBottomControls() {
@@ -305,6 +315,37 @@ index 5ed064ffb6..ccf460c32a 100644
 +
 +    private boolean areBrowserControlsAtBottom() {
 +        return mBrowserControlsStateProvider.getControlsPosition() == ControlsPosition.BOTTOM;
++    }
++
++    /**
++     * Sets the observer that synchronizes the bottom toolbar with the rendered page background.
++     *
++     * <p>{@link #UNDEFINED_STATUS_BAR_COLOR} tells the observer to restore the toolbar's normal
++     * theme color.
++     */
++    public void setBottomToolbarColorObserver(@Nullable Callback<Integer> observer) {
++        mBottomToolbarColorObserver = observer;
++        notifyBottomToolbarColorObserver();
++    }
++
++    private void notifyBottomToolbarColorObserver() {
++        if (mBottomToolbarColorObserver == null) return;
++        mBottomToolbarColorObserver.onResult(getBottomToolbarPageColor());
++    }
++
++    private @ColorInt int getBottomToolbarPageColor() {
++        if (!areBrowserControlsAtBottom()
++                || mCurrentTab == null
++                || mCurrentTab.getNativePage() != null
++                || mIsOmniboxFocused) {
++            return UNDEFINED_STATUS_BAR_COLOR;
++        }
++        if (mPageTopColor != UNDEFINED_STATUS_BAR_COLOR) return mPageTopColor;
++
++        @ColorInt int backgroundColor = mCurrentTab.getBackgroundColor();
++        return Color.alpha(backgroundColor) == 0
++                ? UNDEFINED_STATUS_BAR_COLOR
++                : ColorUtils.getOpaqueColor(backgroundColor);
 +    }
 +
 +    private boolean shouldDeferPageColorUpdate(Tab tab) {
@@ -464,10 +505,10 @@ index 5ed064ffb6..ccf460c32a 100644
  
      @ColorInt
 diff --git a/chrome/android/junit/src/org/chromium/chrome/browser/ui/system/StatusBarColorControllerUnitTest.java b/chrome/android/junit/src/org/chromium/chrome/browser/ui/system/StatusBarColorControllerUnitTest.java
-index 7e37205f63..b71599ee0a 100644
+index 7e37205f63..78853ba5e4 100644
 --- a/chrome/android/junit/src/org/chromium/chrome/browser/ui/system/StatusBarColorControllerUnitTest.java
 +++ b/chrome/android/junit/src/org/chromium/chrome/browser/ui/system/StatusBarColorControllerUnitTest.java
-@@ -24,6 +24,7 @@ import org.junit.Before;
+@@ -24,11 +24,13 @@ import org.junit.Before;
  import org.junit.Rule;
  import org.junit.Test;
  import org.junit.runner.RunWith;
@@ -475,7 +516,13 @@ index 7e37205f63..b71599ee0a 100644
  import org.mockito.Mock;
  import org.mockito.junit.MockitoJUnit;
  import org.mockito.junit.MockitoRule;
-@@ -36,6 +37,7 @@ import org.chromium.base.test.BaseRobolectricTestRunner;
+ import org.robolectric.annotation.Config;
+ 
++import org.chromium.base.Callback;
+ import org.chromium.base.supplier.MonotonicObservableSupplier;
+ import org.chromium.base.supplier.ObservableSuppliers;
+ import org.chromium.base.supplier.SettableNonNullObservableSupplier;
+@@ -36,6 +38,7 @@ import org.chromium.base.test.BaseRobolectricTestRunner;
  import org.chromium.base.test.RobolectricUtil;
  import org.chromium.chrome.browser.ActivityTabProvider;
  import org.chromium.chrome.browser.browser_controls.BrowserControlsStateProvider;
@@ -483,7 +530,7 @@ index 7e37205f63..b71599ee0a 100644
  import org.chromium.chrome.browser.layouts.LayoutManager;
  import org.chromium.chrome.browser.lifecycle.ActivityLifecycleDispatcher;
  import org.chromium.chrome.browser.ntp.NewTabPage;
-@@ -46,6 +48,7 @@ import org.chromium.chrome.browser.ntp_customization.theme.chrome_colors.NtpThem
+@@ -46,6 +49,7 @@ import org.chromium.chrome.browser.ntp_customization.theme.chrome_colors.NtpThem
  import org.chromium.chrome.browser.ntp_customization.theme_sync.data.NtpBackgroundDataBase;
  import org.chromium.chrome.browser.ntp_customization.theme_sync.data.NtpBackgroundDataColor;
  import org.chromium.chrome.browser.tab.Tab;
@@ -491,7 +538,7 @@ index 7e37205f63..b71599ee0a 100644
  import org.chromium.chrome.browser.tasks.tab_management.TabUiThemeUtil;
  import org.chromium.chrome.browser.theme.TopUiThemeColorProvider;
  import org.chromium.chrome.browser.ui.desktop_windowing.AppHeaderUtils;
-@@ -55,6 +58,7 @@ import org.chromium.components.browser_ui.desktop_windowing.DesktopWindowStateMa
+@@ -55,6 +59,7 @@ import org.chromium.components.browser_ui.desktop_windowing.DesktopWindowStateMa
  import org.chromium.ui.base.TestActivity;
  import org.chromium.ui.edge_to_edge.EdgeToEdgeSystemBarColorHelper;
  import org.chromium.ui.util.ColorUtils;
@@ -499,16 +546,18 @@ index 7e37205f63..b71599ee0a 100644
  
  /* Unit tests for StatusBarColorController behavior. */
  @RunWith(BaseRobolectricTestRunner.class)
-@@ -72,6 +76,8 @@ public class StatusBarColorControllerUnitTest {
+@@ -72,7 +77,10 @@ public class StatusBarColorControllerUnitTest {
      @Mock private DesktopWindowStateManager mDesktopWindowStateManager;
      @Mock private BrowserControlsStateProvider mBrowserControlsStateProvider;
      @Mock private Tab mNtpTab;
 +    @Mock private Tab mPageTab;
 +    @Mock private Tab mSecondPageTab;
      @Mock private NewTabPage mNewTabPage;
++    @Mock private Callback<Integer> mBottomToolbarColorObserver;
  
      private final MonotonicObservableSupplier<LayoutManager> mLayoutManagerSupplier =
-@@ -187,6 +193,118 @@ public class StatusBarColorControllerUnitTest {
+             ObservableSuppliers.alwaysNull();
+@@ -187,6 +195,139 @@ public class StatusBarColorControllerUnitTest {
                  mStatusBarColorController.calculateFinalStatusBarColor());
      }
  
@@ -577,6 +626,27 @@ index 7e37205f63..b71599ee0a 100644
 +    }
 +
 +    @Test
++    public void testBottomToolbarColorObserverTracksPageAndFocusState() {
++        when(mBrowserControlsStateProvider.getControlsPosition())
++                .thenReturn(ControlsPosition.BOTTOM);
++        when(mPageTab.getBackgroundColor()).thenReturn(Color.BLUE);
++
++        initialize(/* isTablet= */ false, /* isInDesktopWindow= */ false);
++        mActivityTabProvider.setForTesting(mPageTab);
++        mStatusBarColorController.setBottomToolbarColorObserver(mBottomToolbarColorObserver);
++
++        verify(mBottomToolbarColorObserver).onResult(Color.BLUE);
++
++        mStatusBarColorController.setPageTopColorForTesting(Color.GREEN);
++        mStatusBarColorController.updateStatusBarColor();
++        verify(mBottomToolbarColorObserver).onResult(Color.GREEN);
++
++        mStatusBarColorController.onUrlFocusChange(true);
++        verify(mBottomToolbarColorObserver)
++                .onResult(StatusBarColorController.UNDEFINED_STATUS_BAR_COLOR);
++    }
++
++    @Test
 +    public void testBottomControlsLeavingNtpDefersBackgroundUntilLoadFinishes() {
 +        when(mBrowserControlsStateProvider.getControlsPosition())
 +                .thenReturn(ControlsPosition.BOTTOM);
@@ -627,3 +697,214 @@ index 7e37205f63..b71599ee0a 100644
      @Test
      public void testOnTopResumedActivityChanged() {
          initialize(/* isTablet= */ true, /* isInDesktopWindow= */ true);
+diff --git a/chrome/android/java/src/org/chromium/chrome/browser/toolbar/ToolbarManager.java b/chrome/android/java/src/org/chromium/chrome/browser/toolbar/ToolbarManager.java
+index 17f7465c79..e84940390a 100644
+--- a/chrome/android/java/src/org/chromium/chrome/browser/toolbar/ToolbarManager.java
++++ b/chrome/android/java/src/org/chromium/chrome/browser/toolbar/ToolbarManager.java
+@@ -34,6 +34,7 @@ import android.view.ViewGroup;
+ import android.view.ViewStub;
+ 
+ import androidx.activity.BackEventCompat;
++import androidx.annotation.ColorInt;
+ import androidx.annotation.VisibleForTesting;
+ import androidx.appcompat.app.AppCompatActivity;
+ import androidx.coordinatorlayout.widget.CoordinatorLayout;
+@@ -432,6 +433,7 @@ public class ToolbarManager
+             new TokenHolder(this::updateHairlineVisibility);
+     private int mFullscreenHairlineToken = TokenHolder.INVALID_TOKEN;
+     private int mXrSpaceHairlineToken = TokenHolder.INVALID_TOKEN;
++    private int mBottomToolbarHairlineToken = TokenHolder.INVALID_TOKEN;
+ 
+     private boolean mInitializedWithNative;
+     private @Nullable Runnable mMenuStateObserver;
+@@ -439,7 +441,10 @@ public class ToolbarManager
+     private @MonotonicNonNull UpdateMenuItemHelper mUpdateMenuItemHelper;
+ 
+     private boolean mShouldUpdateToolbarPrimaryColor = true;
++    private boolean mHasCurrentThemeColor;
+     private int mCurrentThemeColor;
++    private @ColorInt int mBottomToolbarPageColor =
++            StatusBarColorController.UNDEFINED_STATUS_BAR_COLOR;
+ 
+     private int mCurrentOrientation;
+ 
+@@ -1382,6 +1387,8 @@ public class ToolbarManager
+                 new LoadProgressCoordinator(
+                         mActivityTabProvider.asObservable(), mToolbar.getProgressBar());
+         mToolbar.setToolbarColorObserver(statusBarColorController);
++        mStatusBarColorController.setBottomToolbarColorObserver(
++                this::onBottomToolbarPageColorChanged);
+ 
+         mActivityTabTabObserver =
+                 new ActivityTabProvider.ActivityTabTabObserver(mActivityTabProvider) {
+@@ -1693,6 +1700,7 @@ public class ToolbarManager
+                     public void onControlsPositionChanged(@ControlsPosition int controlsPosition) {
+                         Tab currentTab = mActivityTabProvider.get();
+                         applyIncognitoNtpAccessibilityOrder(currentTab);
++                        updateBottomToolbarAppearance(controlsPosition);
+                     }
+                 };
+         mBrowserControlsSizer.addObserver(mBrowserControlsObserver);
+@@ -1835,6 +1843,7 @@ public class ToolbarManager
+                 };
+         mWindowAndroid.setProgressBarConfigProvider(mProgressBarConfigProvider);
+         initializeToolbarPositionController();
++        updateBottomToolbarAppearance(mToolbarPositionSupplier.get());
+ 
+         mXrSpaceModeObservableSupplier = xrSpaceModeObservableSupplier;
+         mXrSpaceModeObservableSupplier.addSyncObserver(mOnXrSpaceModeChanged);
+@@ -2873,6 +2882,7 @@ public class ToolbarManager
+             omnibox.removeUrlFocusChangeListener(mStatusBarColorController);
+         }
+         mLocationBar.removeOmniboxSuggestionsDropdownScrollListener(mStatusBarColorController);
++        mStatusBarColorController.setBottomToolbarColorObserver(null);
+ 
+         if (mInitializedWithNative) {
+             mFindToolbarManager.removeObserver(mFindToolbarObserver);
+@@ -3196,10 +3206,29 @@ public class ToolbarManager
+     public void onThemeColorChanged(int color, boolean shouldAnimate) {
+         if (!mShouldUpdateToolbarPrimaryColor) return;
+ 
+-        boolean colorChanged = mCurrentThemeColor != color;
+-        if (!colorChanged) return;
+-
++        mHasCurrentThemeColor = true;
+         mCurrentThemeColor = color;
++        updateToolbarPrimaryColor(shouldAnimate);
++    }
++
++    private void onBottomToolbarPageColorChanged(@ColorInt int color) {
++        mBottomToolbarPageColor = color;
++        updateToolbarPrimaryColor(/* shouldAnimate= */ false);
++    }
++
++    private void updateToolbarPrimaryColor(boolean shouldAnimate) {
++        if (!mShouldUpdateToolbarPrimaryColor) return;
++
++        boolean usePageColor =
++                mBrowserControlsSizer.getControlsPosition() == ControlsPosition.BOTTOM
++                        && mBottomToolbarPageColor
++                                != StatusBarColorController.UNDEFINED_STATUS_BAR_COLOR;
++        if (!usePageColor && !mHasCurrentThemeColor) return;
++
++        @ColorInt int color = usePageColor ? mBottomToolbarPageColor : mCurrentThemeColor;
++        syncBottomControlsBackgroundColor(color);
++        if (mLocationBarModel.getPrimaryColor() == color) return;
++
+         mLocationBarModel.setPrimaryColor(color);
+         mToolbar.onPrimaryColorChanged(shouldAnimate);
+         // TODO(https://crbug.com/40585866, pnoland): Rationalize theme color logic
+@@ -3209,6 +3238,22 @@ public class ToolbarManager
+         mCustomTabThemeColorProvider.setPrimaryColor(color, shouldAnimate);
+     }
+ 
++    @SuppressWarnings("deprecation")
++    private void syncBottomControlsBackgroundColor(@ColorInt int color) {
++        if (mBrowserControlsSizer.getControlsPosition() != ControlsPosition.BOTTOM
++                || mBottomControlsStacker.hasVisibleLayersOtherThan(
++                        Set.of(
++                                LayerType.BOTTOM_TOOLBAR,
++                                LayerType.BOTTOM_CHIN,
++                                LayerType.PROGRESS_BAR))
++                || mBottomControlsStacker.getBackgroundColor() == color) {
++            return;
++        }
++        // The sampled page color bypasses the normal theme provider, so explicitly propagate it
++        // to the system navigation bar / bottom chin color pipeline.
++        mBottomControlsStacker.notifyBackgroundColor(color);
++    }
++
+     @Override
+     public void onTintChanged(
+             @Nullable ColorStateList tint,
+@@ -3226,7 +3271,9 @@ public class ToolbarManager
+      *     from the Tab.
+      */
+     public void setShouldUpdateToolbarPrimaryColor(boolean shouldUpdate) {
++        if (mShouldUpdateToolbarPrimaryColor == shouldUpdate) return;
+         mShouldUpdateToolbarPrimaryColor = shouldUpdate;
++        if (shouldUpdate) updateToolbarPrimaryColor(/* shouldAnimate= */ false);
+     }
+ 
+     /**
+@@ -3251,6 +3298,13 @@ public class ToolbarManager
+         }
+     }
+ 
++    private void updateBottomToolbarAppearance(@ControlsPosition int controlsPosition) {
++        boolean isBottom = controlsPosition == ControlsPosition.BOTTOM;
++        mBottomToolbarHairlineToken =
++                setToolbarShadowVisibilityAndClearOldToken(!isBottom, mBottomToolbarHairlineToken);
++        updateToolbarPrimaryColor(/* shouldAnimate= */ false);
++    }
++
+     /**
+      * Suppresses or restores the toolbar shadow (hairline) via a token mechanism.
+      *
+diff --git a/chrome/android/java/src/org/chromium/chrome/browser/toolbar/ToolbarManagerUnitTest.java b/chrome/android/java/src/org/chromium/chrome/browser/toolbar/ToolbarManagerUnitTest.java
+index 4710fc5371..e18a247334 100644
+--- a/chrome/android/java/src/org/chromium/chrome/browser/toolbar/ToolbarManagerUnitTest.java
++++ b/chrome/android/java/src/org/chromium/chrome/browser/toolbar/ToolbarManagerUnitTest.java
+@@ -16,6 +16,7 @@ import static org.mockito.Mockito.mock;
+ import static org.mockito.Mockito.verify;
+ import static org.mockito.Mockito.when;
+ 
++import android.graphics.Color;
+ import android.view.View;
+ import android.view.ViewStub;
+ 
+@@ -56,6 +57,8 @@ import org.chromium.chrome.browser.bookmarks.BookmarkModel;
+ import org.chromium.chrome.browser.bookmarks.TabBookmarker;
+ import org.chromium.chrome.browser.browser_controls.BottomControlsStacker;
+ import org.chromium.chrome.browser.browser_controls.BrowserControlsSizer;
++import org.chromium.chrome.browser.browser_controls.BrowserControlsStateProvider;
++import org.chromium.chrome.browser.browser_controls.BrowserControlsStateProvider.ControlsPosition;
+ import org.chromium.chrome.browser.browser_controls.BrowserStateBrowserControlsVisibilityDelegate;
+ import org.chromium.chrome.browser.browser_controls.TopControlsStacker;
+ import org.chromium.chrome.browser.compositor.CompositorViewHolder;
+@@ -260,6 +263,7 @@ public class ToolbarManagerUnitTest {
+ 
+     @Captor private ArgumentCaptor<ButtonDataObserver> mIdentityDiscObserverCaptor;
+     @Captor private ArgumentCaptor<ButtonDataObserver> mAdaptiveButtonObserverCaptor;
++    @Captor private ArgumentCaptor<Callback<Integer>> mBottomToolbarColorObserverCaptor;
+ 
+     private List<ButtonDataProvider> mButtonDataProviders;
+     private ActivityController<TestActivity> mActivityController;
+@@ -750,6 +754,37 @@ public class ToolbarManagerUnitTest {
+         mToolbarManager.destroy();
+     }
+ 
++    @Test
++    public void testBottomToolbarMatchesPageColorAndHidesHairline()
++            throws ReflectiveOperationException {
++        mToolbarManager.onThemeColorChanged(Color.BLUE, /* shouldAnimate= */ false);
++        verify(mStatusBarColorController)
++                .setBottomToolbarColorObserver(mBottomToolbarColorObserverCaptor.capture());
++
++        Field observerField = ToolbarManager.class.getDeclaredField("mBrowserControlsObserver");
++        observerField.setAccessible(true);
++        BrowserControlsStateProvider.Observer controlsObserver =
++                (BrowserControlsStateProvider.Observer) observerField.get(mToolbarManager);
++
++        AppCompatActivity activity = mActivityController.get();
++        View hairline = activity.findViewById(R.id.toolbar_hairline);
++        when(mControlsSizer.getControlsPosition()).thenReturn(ControlsPosition.BOTTOM);
++        controlsObserver.onControlsPositionChanged(ControlsPosition.BOTTOM);
++        mBottomToolbarColorObserverCaptor.getValue().onResult(Color.RED);
++
++        assertEquals(Color.RED, mToolbarManager.getLocationBarModelForTesting().getPrimaryColor());
++        verify(mBottomControlsStacker).notifyBackgroundColor(Color.RED);
++        assertEquals(View.INVISIBLE, hairline.getVisibility());
++
++        when(mControlsSizer.getControlsPosition()).thenReturn(ControlsPosition.TOP);
++        controlsObserver.onControlsPositionChanged(ControlsPosition.TOP);
++
++        assertEquals(Color.BLUE, mToolbarManager.getLocationBarModelForTesting().getPrimaryColor());
++        assertEquals(View.VISIBLE, hairline.getVisibility());
++
++        mToolbarManager.destroy();
++    }
++
+     private Tab mockTab(boolean isNtp) {
+         return mockTab(isNtp, false);
+     }

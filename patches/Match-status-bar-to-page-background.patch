@@ -1,5 +1,5 @@
 diff --git a/chrome/android/java/src/org/chromium/chrome/browser/ui/system/StatusBarColorController.java b/chrome/android/java/src/org/chromium/chrome/browser/ui/system/StatusBarColorController.java
-index 5ed064ffb6..d69b314b60 100644
+index 5ed064ffb6..ccf460c32a 100644
 --- a/chrome/android/java/src/org/chromium/chrome/browser/ui/system/StatusBarColorController.java
 +++ b/chrome/android/java/src/org/chromium/chrome/browser/ui/system/StatusBarColorController.java
 @@ -9,13 +9,20 @@ import android.app.ActivityManager;
@@ -70,7 +70,7 @@ index 5ed064ffb6..d69b314b60 100644
      private final @ColorInt int mStandardDefaultThemeColor;
      private final @ColorInt int mIncognitoDefaultThemeColor;
      private final @ColorInt int mActiveOmniboxDefaultColor;
-@@ -135,6 +151,14 @@ public class StatusBarColorController
+@@ -135,6 +151,15 @@ public class StatusBarColorController
      private boolean mIsIncognitoBranded;
      private boolean mIsOmniboxFocused;
      private boolean mAreSuggestionsScrolled;
@@ -81,11 +81,12 @@ index 5ed064ffb6..d69b314b60 100644
 +    // Keep the last rendered color during navigation so the status bar does not briefly fall back
 +    // to the renderer's root background before the new page's first sample is ready.
 +    private final Map<Tab, Integer> mPageTopColors = new WeakHashMap<>();
++    private boolean mPageTopColorNeedsRefresh;
 +    private @ColorInt int mPageTopColor = UNDEFINED_STATUS_BAR_COLOR;
  
      private @ColorInt int mScrimColor = Color.TRANSPARENT;
  
-@@ -198,6 +222,7 @@ public class StatusBarColorController
+@@ -198,6 +223,7 @@ public class StatusBarColorController
          mAllowToolbarColorOnTablets = false;
          mOverviewColorSupplier = overviewColorSupplier;
          mBrowserControlsStateProvider = browserControlsStateProvider;
@@ -93,7 +94,7 @@ index 5ed064ffb6..d69b314b60 100644
  
          mStandardDefaultThemeColor =
                  ChromeColors.getDefaultThemeColor(activity, /* isIncognito= */ false);
-@@ -224,11 +249,36 @@ public class StatusBarColorController
+@@ -224,26 +250,75 @@ public class StatusBarColorController
                      @Override
                      public void onShown(Tab tab, @TabSelectionType int type) {
                          updateStatusBarColor();
@@ -102,26 +103,39 @@ index 5ed064ffb6..d69b314b60 100644
  
                      @Override
                      public void onDidChangeThemeColor(Tab tab, @ColorInt int color) {
-                         updateStatusBarColor();
+-                        updateStatusBarColor();
++                        if (!shouldDeferPageColorUpdate(tab)) updateStatusBarColor();
 +                        schedulePageTopColorSampling();
 +                    }
 +
 +                    @Override
 +                    public void onBackgroundColorChanged(Tab tab, @ColorInt int color) {
 +                        if (areBrowserControlsAtBottom()) {
-+                            updateStatusBarColor();
++                            if (!shouldDeferPageColorUpdate(tab)) updateStatusBarColor();
 +                            schedulePageTopColorSampling();
 +                        }
 +                    }
 +
 +                    @Override
 +                    public void onUrlUpdated(Tab tab) {
++                        if (tab == mCurrentTab && tab.getNativePage() == null) {
++                            mPageTopColorNeedsRefresh = true;
++                        }
 +                        schedulePageTopColorSampling();
 +                    }
 +
 +                    @Override
 +                    public void onPageLoadFinished(Tab tab, GURL url) {
 +                        schedulePageTopColorSampling();
++                        // PixelCopy is best effort. If no fresh rendered sample was accepted during
++                        // loading, discard the previous page's sample and use the renderer's final
++                        // background instead of retaining a stale color indefinitely.
++                        if (tab == mCurrentTab && mPageTopColorNeedsRefresh) {
++                            mPageTopColorNeedsRefresh = false;
++                            mPageTopColors.remove(tab);
++                            mPageTopColor = UNDEFINED_STATUS_BAR_COLOR;
++                            updateStatusBarColor();
++                        }
 +                    }
 +
 +                    @Override
@@ -130,7 +144,28 @@ index 5ed064ffb6..d69b314b60 100644
                      }
  
                      @Override
-@@ -244,6 +294,7 @@ public class StatusBarColorController
+                     public void onContentChanged(Tab tab) {
+                         final boolean newShouldUpdateStatusBarColorForNtp = isStandardNtp();
++                        if (newShouldUpdateStatusBarColorForNtp) {
++                            mPageTopColors.remove(tab);
++                            mPageTopColorNeedsRefresh = false;
++                            mPageTopColor = UNDEFINED_STATUS_BAR_COLOR;
++                        }
++                        final boolean isLeavingNtp =
++                                mShouldUpdateStatusBarColorForNtp
++                                        && !newShouldUpdateStatusBarColorForNtp
++                                        && areBrowserControlsAtBottom();
++                        if (isLeavingNtp) mPageTopColorNeedsRefresh = true;
+                         // Also update the status bar color if the content was previously an NTP,
+                         // because an NTP can use a different status bar color than the default
+                         // theme color. In this case, the theme color might not change, and thus
+                         // #onDidChangeThemeColor
+                         // might not get called.
+-                        if (mShouldUpdateStatusBarColorForNtp
+-                                || newShouldUpdateStatusBarColorForNtp) {
++                        if ((mShouldUpdateStatusBarColorForNtp
++                                        || newShouldUpdateStatusBarColorForNtp)
++                                && !isLeavingNtp) {
                              updateStatusBarColor();
                          }
                          mShouldUpdateStatusBarColorForNtp = newShouldUpdateStatusBarColorForNtp;
@@ -138,23 +173,25 @@ index 5ed064ffb6..d69b314b60 100644
                      }
  
                      @Override
-@@ -251,7 +302,10 @@ public class StatusBarColorController
+@@ -251,7 +326,11 @@ public class StatusBarColorController
                              Tab tab, @Nullable WindowAndroid window) {
                          // Stop referring to the Tab once detached from an activity. Will be
                          // restored by |onObservingDifferentTab|.
 -                        if (window == null) mCurrentTab = null;
 +                        if (window == null) {
 +                            mCurrentTab = null;
++                            mPageTopColorNeedsRefresh = false;
 +                            cancelPageTopColorSampling();
 +                        }
                      }
  
                      @Override
-@@ -262,10 +316,13 @@ public class StatusBarColorController
+@@ -262,18 +341,30 @@ public class StatusBarColorController
                          // called.
                          mCurrentTab = null;
                          mShouldUpdateStatusBarColorForNtp = false;
 +                        mPageTopColors.remove(tab);
++                        mPageTopColorNeedsRefresh = false;
 +                        cancelPageTopColorSampling();
                      }
  
@@ -164,11 +201,16 @@ index 5ed064ffb6..d69b314b60 100644
                          mCurrentTab = tab;
                          mShouldUpdateStatusBarColorForNtp = isStandardNtp();
  
-@@ -273,7 +330,11 @@ public class StatusBarColorController
+                         // |tab == null| means we're switching tabs - by the tab switcher or by
                          // swiping on the omnibox. These cases are dealt with differently,
                          // elsewhere.
-                         if (tab == null) return;
+-                        if (tab == null) return;
++                        if (tab == null) {
++                            mPageTopColorNeedsRefresh = false;
++                            return;
++                        }
 +                        Integer cachedColor = mPageTopColors.get(tab);
++                        mPageTopColorNeedsRefresh = tab.isLoading();
 +                        mPageTopColor =
 +                                cachedColor == null ? UNDEFINED_STATUS_BAR_COLOR : cachedColor;
                          updateStatusBarColor();
@@ -176,7 +218,7 @@ index 5ed064ffb6..d69b314b60 100644
                      }
                  };
  
-@@ -306,6 +367,7 @@ public class StatusBarColorController
+@@ -306,6 +397,7 @@ public class StatusBarColorController
              mIsTopResumedActivity = !mDesktopWindowStateManager.isInUnfocusedDesktopWindow();
          }
          mOverviewColorSupplier.addSyncObserverAndPostIfNonNull(mOverviewColorObserver);
@@ -184,17 +226,18 @@ index 5ed064ffb6..d69b314b60 100644
      }
  
      /**
-@@ -373,6 +435,9 @@ public class StatusBarColorController
+@@ -373,6 +465,10 @@ public class StatusBarColorController
      @SuppressWarnings("NullAway")
      public void onDestroy() {
          mStatusBarColorTabObserver.destroy();
 +        mBrowserControlsStateProvider.removeObserver(this);
 +        cancelPageTopColorSampling();
 +        mPageTopColors.clear();
++        mPageTopColorNeedsRefresh = false;
          if (mLayoutStateProvider != null) {
              mLayoutStateProvider.removeObserver(mLayoutStateObserver);
          }
-@@ -410,6 +475,7 @@ public class StatusBarColorController
+@@ -410,6 +506,7 @@ public class StatusBarColorController
          mToolbarColorChanged = true;
          mToolbarColor = color;
          updateStatusBarColor();
@@ -202,7 +245,7 @@ index 5ed064ffb6..d69b314b60 100644
      }
  
      @Override
-@@ -433,6 +499,28 @@ public class StatusBarColorController
+@@ -433,6 +530,28 @@ public class StatusBarColorController
      public void onUrlFocusChange(boolean hasFocus) {
          mIsOmniboxFocused = hasFocus;
          updateStatusBarColor();
@@ -231,7 +274,7 @@ index 5ed064ffb6..d69b314b60 100644
      }
  
      @Override
-@@ -595,6 +683,19 @@ public class StatusBarColorController
+@@ -595,6 +714,19 @@ public class StatusBarColorController
              return mBackgroundColorForNtp;
          }
  
@@ -251,7 +294,7 @@ index 5ed064ffb6..d69b314b60 100644
          // Return status bar color to match the toolbar.
          // If the flag is enabled, we will use the toolbar color.
          if (mToolbarColorChanged && !isBottomBarEnabledAndBottomControls()) return mToolbarColor;
-@@ -734,8 +835,158 @@ public class StatusBarColorController
+@@ -734,8 +866,166 @@ public class StatusBarColorController
      }
  
      private boolean isBottomBarEnabledAndBottomControls() {
@@ -262,6 +305,13 @@ index 5ed064ffb6..d69b314b60 100644
 +
 +    private boolean areBrowserControlsAtBottom() {
 +        return mBrowserControlsStateProvider.getControlsPosition() == ControlsPosition.BOTTOM;
++    }
++
++    private boolean shouldDeferPageColorUpdate(Tab tab) {
++        return areBrowserControlsAtBottom()
++                && tab == mCurrentTab
++                && tab.getNativePage() == null
++                && mPageTopColorNeedsRefresh;
 +    }
 +
 +    private void schedulePageTopColorSampling() {
@@ -375,6 +425,7 @@ index 5ed064ffb6..d69b314b60 100644
 +                                && sampledTab == mCurrentTab) {
 +                            @ColorInt int sampledColor = calculateAverageColor(bitmap);
 +                            mPageTopColors.put(sampledTab, sampledColor);
++                            mPageTopColorNeedsRefresh = false;
 +                            if (mPageTopColor != sampledColor) {
 +                                mPageTopColor = sampledColor;
 +                                updateStatusBarColor();
@@ -413,7 +464,7 @@ index 5ed064ffb6..d69b314b60 100644
  
      @ColorInt
 diff --git a/chrome/android/junit/src/org/chromium/chrome/browser/ui/system/StatusBarColorControllerUnitTest.java b/chrome/android/junit/src/org/chromium/chrome/browser/ui/system/StatusBarColorControllerUnitTest.java
-index 7e37205f63..0d19cd26a0 100644
+index 7e37205f63..b71599ee0a 100644
 --- a/chrome/android/junit/src/org/chromium/chrome/browser/ui/system/StatusBarColorControllerUnitTest.java
 +++ b/chrome/android/junit/src/org/chromium/chrome/browser/ui/system/StatusBarColorControllerUnitTest.java
 @@ -24,6 +24,7 @@ import org.junit.Before;
@@ -440,7 +491,15 @@ index 7e37205f63..0d19cd26a0 100644
  import org.chromium.chrome.browser.tasks.tab_management.TabUiThemeUtil;
  import org.chromium.chrome.browser.theme.TopUiThemeColorProvider;
  import org.chromium.chrome.browser.ui.desktop_windowing.AppHeaderUtils;
-@@ -72,6 +75,8 @@ public class StatusBarColorControllerUnitTest {
+@@ -55,6 +58,7 @@ import org.chromium.components.browser_ui.desktop_windowing.DesktopWindowStateMa
+ import org.chromium.ui.base.TestActivity;
+ import org.chromium.ui.edge_to_edge.EdgeToEdgeSystemBarColorHelper;
+ import org.chromium.ui.util.ColorUtils;
++import org.chromium.url.GURL;
+ 
+ /* Unit tests for StatusBarColorController behavior. */
+ @RunWith(BaseRobolectricTestRunner.class)
+@@ -72,6 +76,8 @@ public class StatusBarColorControllerUnitTest {
      @Mock private DesktopWindowStateManager mDesktopWindowStateManager;
      @Mock private BrowserControlsStateProvider mBrowserControlsStateProvider;
      @Mock private Tab mNtpTab;
@@ -449,7 +508,7 @@ index 7e37205f63..0d19cd26a0 100644
      @Mock private NewTabPage mNewTabPage;
  
      private final MonotonicObservableSupplier<LayoutManager> mLayoutManagerSupplier =
-@@ -187,6 +192,79 @@ public class StatusBarColorControllerUnitTest {
+@@ -187,6 +193,118 @@ public class StatusBarColorControllerUnitTest {
                  mStatusBarColorController.calculateFinalStatusBarColor());
      }
  
@@ -494,6 +553,14 @@ index 7e37205f63..0d19cd26a0 100644
 +                "The first-paint sampling request should not clear the retained color.",
 +                Color.GREEN,
 +                mStatusBarColorController.getStatusBarColorWithoutStatusIndicator());
++        when(mPageTab.isLoading()).thenReturn(false);
++        tabObserverCaptor.getValue().onPageLoadFinished(mPageTab, new GURL("https://example.com"));
++        assertEquals(
++                "A stale sample should not survive after the new page finishes loading.",
++                Color.RED,
++                mStatusBarColorController.getStatusBarColorWithoutStatusIndicator());
++        mStatusBarColorController.setPageTopColorForTesting(Color.CYAN);
++        mStatusBarColorController.updateStatusBarColor();
 +
 +        when(mSecondPageTab.getBackgroundColor()).thenReturn(Color.YELLOW);
 +        mActivityTabProvider.setForTesting(mSecondPageTab);
@@ -504,8 +571,39 @@ index 7e37205f63..0d19cd26a0 100644
 +
 +        mActivityTabProvider.setForTesting(mPageTab);
 +        assertEquals(
-+                "Switching back should restore the tab's sampled color without a fallback flash.",
-+                Color.GREEN,
++                "Switching back should restore the tab's latest sampled color.",
++                Color.CYAN,
++                mStatusBarColorController.getStatusBarColorWithoutStatusIndicator());
++    }
++
++    @Test
++    public void testBottomControlsLeavingNtpDefersBackgroundUntilLoadFinishes() {
++        when(mBrowserControlsStateProvider.getControlsPosition())
++                .thenReturn(ControlsPosition.BOTTOM);
++        when(mNtpTab.getNativePage()).thenReturn(mNewTabPage);
++
++        initialize(/* isTablet= */ false, /* isInDesktopWindow= */ false);
++        mActivityTabProvider.setForTesting(mNtpTab);
++        @ColorInt
++        int ntpColor = mStatusBarColorController.getStatusBarColorWithoutStatusIndicator();
++
++        ArgumentCaptor<TabObserver> tabObserverCaptor = ArgumentCaptor.forClass(TabObserver.class);
++        verify(mNtpTab).addObserver(tabObserverCaptor.capture());
++        when(mNtpTab.getNativePage()).thenReturn(null);
++        when(mNtpTab.isLoading()).thenReturn(true);
++        when(mNtpTab.getBackgroundColor()).thenReturn(Color.WHITE);
++        tabObserverCaptor.getValue().onContentChanged(mNtpTab);
++
++        assertEquals(
++                "Leaving the NTP should not expose a transient renderer background.",
++                ntpColor,
++                mStatusBarColorController.getStatusBarColorWithoutStatusIndicator());
++
++        when(mNtpTab.isLoading()).thenReturn(false);
++        tabObserverCaptor.getValue().onPageLoadFinished(mNtpTab, new GURL("https://example.com"));
++        assertEquals(
++                "The final renderer background should be used if sampling did not complete.",
++                Color.WHITE,
 +                mStatusBarColorController.getStatusBarColorWithoutStatusIndicator());
 +    }
 +
